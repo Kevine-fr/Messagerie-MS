@@ -1,0 +1,97 @@
+version: "3.8"
+
+services:
+  # Base de données MySQL
+  db:
+    image: mysql:5.7
+    container_name: mysql_messagerie
+    volumes:
+      - db_data:/var/lib/mysql
+    restart: unless-stopped
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: password  
+      MYSQL_DATABASE: messagerie  
+      MYSQL_PASSWORD: password    
+    networks:
+      - backend
+
+  # phpMyAdmin
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: phpmyadmin_messagerie
+    restart: unless-stopped
+    depends_on:
+      - db
+    ports:
+      - "8090:80"
+    environment:
+      PMA_HOST: db
+      PMA_USER: root
+      PMA_PASSWORD: password
+    networks:
+      - backend
+
+  # Application Laravel
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.user
+    container_name: messagerie
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+      - kafka
+    environment:
+      DB_CONNECTION: mysql
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_DATABASE: messagerie
+      DB_USERNAME: root
+      DB_PASSWORD: password
+    networks:
+      - backend
+    volumes:
+      - .:/var/www
+
+  # Zookeeper
+  zookeeper:
+    image: bitnami/zookeeper:latest
+    container_name: zookeeper_messagerie
+    restart: unless-stopped
+    ports:
+      - "2181:2181"
+    environment:
+      - ALLOW_ANONYMOUS_LOGIN=yes
+    networks:
+      - backend
+
+  # Kafka
+  kafka:
+    image: bitnami/kafka:3.5
+    container_name: kafka_messagerie
+    restart: unless-stopped
+    ports:
+      - "9092:9092"
+    environment:
+      - KAFKA_ENABLE_KRAFT=no  # ✅ Force l'utilisation de Zookeeper
+      - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
+      - KAFKA_CFG_BROKER_ID=1
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT
+      - ALLOW_PLAINTEXT_LISTENER=yes
+    depends_on:
+      - zookeeper
+    networks:
+      - backend
+
+
+volumes:
+  db_data:
+
+networks:
+  backend:

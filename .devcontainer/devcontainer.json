@@ -1,0 +1,11 @@
+{
+  "name": "Messagerie Dev",
+  "dockerComposeFile": "../docker-compose.yml",
+  "service": "app",
+  "workspaceFolder": "/var/www",
+  "forwardPorts": [8000, 3306, 2181, 9092],
+  "features": {
+    "ghcr.io/devcontainers-extra/features/composer:1": {}
+  },
+  "postCreateCommand": "cp .env.example .env && php artisan key:generate && composer install"
+}

@@ -1,0 +1,20 @@
+# Utilise l'image Node.js officielle
+FROM node:18
+
+# Crée un dossier pour l'app
+WORKDIR /usr/src/app
+
+# Copie les fichiers de dépendances
+COPY package*.json ./
+
+# Installe les dépendances
+RUN npm install
+
+# Copie le reste des fichiers
+COPY . .
+
+# Expose le port (doit correspondre à celui utilisé dans app.js/server.js)
+EXPOSE 3000
+
+# Commande pour démarrer le service
+CMD ["npm", "run", "start"]
