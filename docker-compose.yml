@@ -1,12 +1,13 @@
 version: "3.8"
 
 services:
-  # Base de données MySQL
   db:
     image: mysql:5.7
     container_name: mysql_messagerie
     volumes:
       - db_data:/var/lib/mysql
+      - .:/workspace
+    working_dir: /workspace
     restart: unless-stopped
     ports:
       - "3306:3306"
@@ -17,7 +18,6 @@ services:
     networks:
       - backend
 
-  # phpMyAdmin
   phpmyadmin:
     image: phpmyadmin/phpmyadmin
     container_name: phpmyadmin_messagerie
@@ -32,13 +32,15 @@ services:
       PMA_PASSWORD: password
     networks:
       - backend
+    volumes:
+      - .:/workspace
+    working_dir: /workspace
 
-  # Application Laravel
   app:
     build:
-      context: .
+      context: ./user_service
       dockerfile: Dockerfile.user
-    container_name: messagerie
+    container_name: user_service
     restart: unless-stopped
     ports:
       - "8000:8000"
@@ -55,9 +57,9 @@ services:
     networks:
       - backend
     volumes:
-      - .:/var/www
+      - .:/workspace
+    working_dir: /workspace/user_service
 
-  # Zookeeper
   zookeeper:
     image: bitnami/zookeeper:latest
     container_name: zookeeper_messagerie
@@ -68,8 +70,10 @@ services:
       - ALLOW_ANONYMOUS_LOGIN=yes
     networks:
       - backend
+    volumes:
+      - .:/workspace
+    working_dir: /workspace
 
-  # Kafka
   kafka:
     image: bitnami/kafka:3.5
     container_name: kafka_messagerie
@@ -88,8 +92,10 @@ services:
       - zookeeper
     networks:
       - backend
+    volumes:
+      - .:/workspace
+    working_dir: /workspace
 
-  # MongoDB
   mongodb:
     image: mongo:6
     container_name: mongodb_messagerie
@@ -98,15 +104,16 @@ services:
       - "27017:27017"
     volumes:
       - mongodb_data:/data/db
+      - .:/workspace
+    working_dir: /workspace
     networks:
       - backend
 
-  # Service Node.js pour la messagerie
   nodejs:
     build:
-      context: ./nodejs
+      context: ./message_service
       dockerfile: Dockerfile.messaging
-    container_name: messagerie_nodejs
+    container_name: message_service
     restart: unless-stopped
     ports:
       - "3000:3000"
@@ -116,7 +123,8 @@ services:
     networks:
       - backend
     volumes:
-      - ./nodejs:/usr/src/app
+      - .:/workspace
+    working_dir: /workspace/message_service
     environment:
       - MONGO_URI=mongodb://mongodb:27017/messages_db
 

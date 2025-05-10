@@ -2,10 +2,11 @@
   "name": "Messagerie Dev",
   "dockerComposeFile": "../docker-compose.yml",
   "service": "app",
-  "workspaceFolder": "/var/www",
-  "forwardPorts": [8000, 3306, 2181, 9092 , 3000],
+  "workspaceFolder": "/workspace",
+  "forwardPorts": [8000, 3306, 2181, 9092, 3000],
   "features": {
-    "ghcr.io/devcontainers-extra/features/composer:1": {}
+    "ghcr.io/devcontainers-extra/features/composer:1": {},
+    "ghcr.io/devcontainers/features/node:1": {}
   },
-  "postCreateCommand": "cp .env.example .env && php artisan key:generate && composer install"
+  "postCreateCommand": "echo 'Configuration éffectuée avec succès ✅'"
 }
