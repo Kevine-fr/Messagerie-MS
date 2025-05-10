@@ -31,4 +31,5 @@ COPY . .
 
 EXPOSE 8000
 
-CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
+# Serveur run depuis le docker-compose.yml
+# CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
