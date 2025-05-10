@@ -4,72 +4,70 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use RdKafka\Consumer;
-use RdKafka\ConsumerTopic;
-use App\Models\User;  // Assurez-vous d'inclure le modèle User
-use Faker\Factory as Faker;
+use RdKafka\Message;
 
 class KafkaConsumer extends Command
 {
-    protected $signature = 'kafka:consume {topic}';
-    protected $description = 'Consomme des messages depuis Kafka et crée un utilisateur aléatoire';
+    protected $signature = 'kafka:consume {topics=user.deleted,message.sended}';
+    protected $description = 'Consomme les messages depuis Kafka pour plusieurs topics';
+
+    // Variable pour le compteur
+    private $messageCount = 0;
 
     public function handle()
     {
-        $topic = $this->argument('topic');
-        
+        // Récupérer les topics depuis l'argument
+        $topics = explode(',', $this->argument('topics')); // Sépare les topics par des virgules
+
         // Créer une instance du consommateur Kafka
         $consumer = new Consumer();
-        $consumer->addBrokers(config('kafka.brokers')); // Le broker Kafka
+        $consumer->addBrokers(config('kafka.brokers')); // Assure-toi de configurer les brokers Kafka dans le fichier .env
 
-        // Créer un consommateur pour le topic spécifié
-        $topicInstance = $consumer->newTopic($topic);
+        foreach ($topics as $topic) {
+            // Créer un consommateur pour chaque topic spécifié
+            $topicInstance = $consumer->newTopic($topic);
 
-        // Commencer à consommer à partir du début si aucun message n'a été consommé
-        $topicInstance->consumeStart(0, RD_KAFKA_OFFSET_BEGINNING); // Consommer depuis le début du topic
+            // Commencer à consommer à partir du début si aucun message n'a été consommé
+            $topicInstance->consumeStart(0, RD_KAFKA_OFFSET_BEGINNING);
+            echo "Consommation des messages du topic: {$topic}\n";
 
-        // Créer une instance de Faker pour générer des données aléatoires
-        $faker = Faker::create();
+            // Consommer les messages indéfiniment
+            while (true) {
+                // Consommer un message avec un délai de 1000ms (1 seconde)
+                $message = $topicInstance->consume(0, 1000);
 
-        // Consommer les messages indéfiniment (ou jusqu'à une certaine condition)
-        while (true) {
-            // Consommer un message avec un délai de 1000ms (1 seconde)
-            $message = $topicInstance->consume(0, 1000); 
+                // Vérifier si le message est null
+                if ($message === null) {
+                    echo "En attente sur le topic {$topic}...\n";
+                    sleep(1);
+                    continue; // Si aucun message, continuer
+                }
 
-            // Vérifier si le message est null
-            if ($message === null) {
-                echo "Aucun message à consommer. En attente...\n";
-                sleep(1); // Attente de 1 seconde avant de réessayer
-                continue; // Si aucun message, continuer
+                // Vérifier s'il y a une erreur dans le message
+                if ($message->err) {
+                    echo "Erreur sur le topic {$topic}: {$message->errstr()}\n";
+                    break; // Arrêter la consommation si une erreur est détectée
+                }
+
+                // Affichage du message reçu
+                echo "Message reçu du topic {$topic}: " . $message->payload . "\n";
+
+                // Incrémenter le compteur pour chaque message reçu
+                $this->incrementMessageCount();
+
+                // Afficher le compteur actuel
+                echo "Messages consommés: {$this->messageCount}\n";
+
+                // Si tu veux éviter que la boucle se répète trop rapidement,
+                // tu peux ajouter une petite pause pour diminuer la charge du processeur
+                sleep(1);
             }
-
-            // Vérifier s'il y a une erreur dans le message
-            if ($message->err) {
-                echo "Erreur: {$message->errstr()}\n";
-                break; // Arrêter la consommation si une erreur est détectée
-            }
-
-            // Affichage du message reçu
-            echo "Message reçu: " . $message->payload . "\n";
-
-            // Créer un utilisateur aléatoire dans la base de données
-            $this->createRandomUser($faker);
-
-            // Si tu veux éviter que la boucle se répète trop rapidement,
-            // tu peux ajouter une petite pause pour diminuer la charge du processeur
-            sleep(1); // Attente de 1 seconde avant de récupérer le prochain message
         }
     }
 
-    // Méthode pour créer un utilisateur aléatoire dans la base de données
-    private function createRandomUser($faker)
+    // Méthode pour incrémenter le compteur
+    private function incrementMessageCount()
     {
-        // Créer un utilisateur aléatoire avec Faker
-        $user = User::create([
-            'name' => $faker->name,
-            'email' => $faker->unique()->safeEmail,
-            'password' => bcrypt('password'), // Tu peux ajuster ce mot de passe
-        ]);
-
-        echo "Utilisateur créé: {$user->name}, Email: {$user->email}\n";
+        $this->messageCount++;
     }
 }

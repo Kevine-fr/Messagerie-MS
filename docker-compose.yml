@@ -77,7 +77,7 @@ services:
     ports:
       - "9092:9092"
     environment:
-      - KAFKA_ENABLE_KRAFT=no  # ✅ Force l'utilisation de Zookeeper
+      - KAFKA_ENABLE_KRAFT=no
       - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
       - KAFKA_CFG_BROKER_ID=1
       - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092
@@ -89,9 +89,40 @@ services:
     networks:
       - backend
 
+  # MongoDB
+  mongodb:
+    image: mongo:6
+    container_name: mongodb_messagerie
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - backend
+
+  # Service Node.js pour la messagerie
+  nodejs:
+    build:
+      context: ./nodejs
+      dockerfile: Dockerfile.messaging
+    container_name: messagerie_nodejs
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      - kafka
+      - mongodb
+    networks:
+      - backend
+    volumes:
+      - ./nodejs:/usr/src/app
+    environment:
+      - MONGO_URI=mongodb://mongodb:27017/messages_db
 
 volumes:
   db_data:
+  mongodb_data:
 
 networks:
   backend:
