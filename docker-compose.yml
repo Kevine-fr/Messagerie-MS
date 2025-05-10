@@ -61,7 +61,6 @@ services:
     working_dir: /workspace/user_service
     command: sh -c "composer install && php artisan serve --host=0.0.0.0 --port=8000"
 
-
   zookeeper:
     image: bitnami/zookeeper:latest
     container_name: zookeeper_messagerie
@@ -129,6 +128,27 @@ services:
     working_dir: /workspace/message_service
     environment:
       - MONGO_URI=mongodb://mongodb:27017/messages_db
+
+  apigateway:
+    build:
+      context: ./apigateway
+      dockerfile: Dockerfile.apigateway
+    container_name: api_gateway
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    networks:
+      - backend
+    depends_on:
+      - app
+      - nodejs
+    volumes:
+      - .:/workspace
+    working_dir: /workspace/apigateway
+    environment:
+      - USER_SERVICE_URL=http://user_service:8000
+      - MESSAGE_SERVICE_URL=http://message_service:3000
+      - JWT_SECRET=BQbrDxP4WWoMDUeTaTDeEs8wSsizAulUkAEuhCkua13s5wsP0MzN6kBovKz1djtQ
 
 volumes:
   db_data:

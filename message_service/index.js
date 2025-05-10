@@ -21,7 +21,7 @@ app.use('/messages', messageRoutes);
 
 // Route de test
 app.get('/', (req, res) => {
-  res.send('Hello World!');
+  res.send('Service Message is running... ✅');
 });
 
 app.listen(port, () => {
