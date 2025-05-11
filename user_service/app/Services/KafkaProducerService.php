@@ -18,7 +18,7 @@ class KafkaProducerService
         $password = config('kafka.password');
 
         $this->producer = KafkaProducerBuilder::create()
-            ->withAdditionalBroker([$brokerList])
+            ->withAdditionalBroker($brokerList)
             ->withAdditionalConfig([
                 'security.protocol' => 'SASL_SSL',
                 'sasl.mechanisms' => 'PLAIN',
@@ -33,7 +33,7 @@ class KafkaProducerService
     public function send(string $topic, array $payload): void
     {
         try {
-            $message = KafkaProducerMessage::create($topic, 6)
+            $message = KafkaProducerMessage::create($topic, 0)
                 ->withBody(json_encode($payload))
                 ->withKey(uniqid());
 
