@@ -68,7 +68,7 @@ class AuthController extends Controller
         try {
             $user = JWTAuth::parseToken()->authenticate();
 
-            if (!$user || !$user->exists || $user->status !== 'active') {
+            if (!$user || !$user->exists) {
                 return response()->json([
                     "message" => "Utilisateur non autorisé ou inactif."
                 ], 403);
