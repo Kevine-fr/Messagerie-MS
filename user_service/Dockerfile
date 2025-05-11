@@ -29,7 +29,5 @@ RUN composer install --no-interaction --prefer-dist --optimize-autoloader
 
 EXPOSE 8000
 
-CMD rm -f database/database.sqlite && \
-    touch database/database.sqlite && \
-    php artisan migrate --force && \
+CMD php artisan migrate --force && \
     php artisan serve --host=0.0.0.0 --port=8000
