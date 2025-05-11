@@ -2,11 +2,16 @@ FROM node:18
 
 WORKDIR /usr/src/app
 
-COPY message_service/ .  
+COPY package*.json ./
 
 RUN npm install
 RUN npm install mongoose
 RUN npm install dotenv
+
+COPY . .  
+
+# Si nécessaire, ajouter cette ligne pour le fichier .env
+COPY .env ./
 
 EXPOSE 3000
 
