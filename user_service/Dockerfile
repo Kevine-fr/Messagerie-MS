@@ -21,7 +21,8 @@ RUN pecl install rdkafka \
     && docker-php-ext-enable rdkafka
 
 WORKDIR /var/www
-COPY . .
+
+COPY user_service/ .
 
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 RUN composer install --no-interaction --prefer-dist --optimize-autoloader
