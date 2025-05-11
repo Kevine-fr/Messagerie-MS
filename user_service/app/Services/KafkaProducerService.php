@@ -13,12 +13,19 @@ class KafkaProducerService
 
     public function __construct()
     {
-        $brokerList = config('kafka.brokers'); // nom du service dans docker-compose
+        $brokerList = config('kafka.brokers');
+        $username = config('kafka.username');
+        $password = config('kafka.password');
 
         $this->producer = KafkaProducerBuilder::create()
             ->withAdditionalBroker($brokerList)
             ->withAdditionalConfig([
                 'metadata.broker.list' => $brokerList,
+                'security.protocol' => 'SASL_SSL',
+                'sasl.mechanisms' => 'PLAIN',
+                'sasl.username' => $username,
+                'sasl.password' => $password,
+                'ssl.endpoint.identification.algorithm' => 'https',
             ])
             ->build();
     }

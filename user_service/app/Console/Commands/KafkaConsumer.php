@@ -4,68 +4,57 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use RdKafka\Consumer;
-use RdKafka\Message;
+use RdKafka\ConsumerTopic;
+use RdKafka\Conf;
 
 class KafkaConsumer extends Command
 {
     protected $signature = 'kafka:consume {topics=user.deleted,message.sended}';
     protected $description = 'Consomme les messages depuis Kafka pour plusieurs topics';
 
-    // Variable pour le compteur
     private $messageCount = 0;
 
     public function handle()
     {
-        // Récupérer les topics depuis l'argument
-        $topics = explode(',', $this->argument('topics')); // Sépare les topics par des virgules
+        $topics = explode(',', $this->argument('topics'));
 
-        // Créer une instance du consommateur Kafka
-        $consumer = new Consumer();
-        $consumer->addBrokers(config('kafka.brokers')); // Assure-toi de configurer les brokers Kafka dans le fichier .env
+        $conf = new Conf();
+        $conf->set('group.id', config('kafka.group_id'));
+        $conf->set('metadata.broker.list', config('kafka.brokers'));
+        $conf->set('security.protocol', 'SASL_SSL');
+        $conf->set('sasl.mechanisms', 'PLAIN');
+        $conf->set('sasl.username', config('kafka.username'));
+        $conf->set('sasl.password', config('kafka.password'));
 
-        foreach ($topics as $topic) {
-            // Créer un consommateur pour chaque topic spécifié
-            $topicInstance = $consumer->newTopic($topic);
+        $consumer = new Consumer($conf);
 
-            // Commencer à consommer à partir du début si aucun message n'a été consommé
-            $topicInstance->consumeStart(0, RD_KAFKA_OFFSET_BEGINNING);
-            echo "Consommation des messages du topic: {$topic}\n";
+        foreach ($topics as $topicName) {
+            $topic = $consumer->newTopic($topicName);
+            $topic->consumeStart(0, RD_KAFKA_OFFSET_BEGINNING);
+            echo "Écoute du topic : $topicName\n";
 
-            // Consommer les messages indéfiniment
             while (true) {
-                // Consommer un message avec un délai de 1000ms (1 seconde)
-                $message = $topicInstance->consume(0, 1000);
+                $message = $topic->consume(0, 1000);
 
-                // Vérifier si le message est null
                 if ($message === null) {
-                    echo "En attente sur le topic {$topic}...\n";
+                    echo "En attente de message sur $topicName...\n";
                     sleep(1);
-                    continue; // Si aucun message, continuer
+                    continue;
                 }
 
-                // Vérifier s'il y a une erreur dans le message
                 if ($message->err) {
-                    echo "Erreur sur le topic {$topic}: {$message->errstr()}\n";
-                    break; // Arrêter la consommation si une erreur est détectée
+                    echo "Erreur sur $topicName : " . $message->errstr() . "\n";
+                    break;
                 }
 
-                // Affichage du message reçu
-                echo "Message reçu du topic {$topic}: " . $message->payload . "\n";
-
-                // Incrémenter le compteur pour chaque message reçu
+                echo "Message reçu de $topicName : " . $message->payload . "\n";
                 $this->incrementMessageCount();
-
-                // Afficher le compteur actuel
-                echo "Messages consommés: {$this->messageCount}\n";
-
-                // Si tu veux éviter que la boucle se répète trop rapidement,
-                // tu peux ajouter une petite pause pour diminuer la charge du processeur
+                echo "Total messages : $this->messageCount\n";
                 sleep(1);
             }
         }
     }
 
-    // Méthode pour incrémenter le compteur
     private function incrementMessageCount()
     {
         $this->messageCount++;
