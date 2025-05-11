@@ -14,6 +14,7 @@ Route::get('/test', function () {
 
 Route::post('/user/login', [AuthController::class, 'Login']);
 Route::post('/user/register', [AuthController::class, 'Register']);
+Route::get('/users', [AuthController::class, 'GetUsers']);
 Route::middleware('jwt.auth')->get('/me', [AuthController::class, 'Me']);
 
 Route::delete('/user/{id}', [UserController::class, 'destroy']);

@@ -10,6 +10,28 @@ use Illuminate\Support\Facades\Validator;
 
 class AuthController extends Controller
 {
+    public function GetUsers()
+    {
+        try {
+            $users = User::all();
+
+            if ($users->isEmpty()) {
+                return response()->json([
+                    "message" => "Aucun utilisateur n'a été enregistré dans la base de données !"
+                ], 204);
+            }
+
+            return response()->json([
+                "message" => "Utilisateurs récupérés avec succès !",
+                "data" => $users
+            ], 200);
+        } catch (\Throwable $th) {
+            return response()->json([
+                "message" => "Erreur lors de la récupération des utilisateurs !",
+                "errors" => $th->getMessage()
+            ], 500);
+        }
+    }
 
     public function Register(Request $request)
     {
