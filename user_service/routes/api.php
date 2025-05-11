@@ -9,7 +9,7 @@ Route::get('/', function () {
 });
 
 Route::get('/test', function () {
-    return config('kafka.brokers');
+    return 'Teste réussi avec succès ✅';
 });
 
 Route::post('/user/login', [AuthController::class, 'Login']);

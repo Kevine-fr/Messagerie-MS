@@ -67,7 +67,20 @@ class AuthController extends Controller
     {
         try {
             $user = JWTAuth::parseToken()->authenticate();
+
+            if (!$user || !$user->exists || $user->status !== 'active') {
+                return response()->json([
+                    "message" => "Utilisateur non autorisé ou inactif."
+                ], 403);
+            }
+
             return response()->json($user);
+        } catch (\Tymon\JWTAuth\Exceptions\TokenExpiredException $e) {
+            return response()->json(['message' => 'Token expiré'], 401);
+        } catch (\Tymon\JWTAuth\Exceptions\TokenInvalidException $e) {
+            return response()->json(['message' => 'Token invalide'], 401);
+        } catch (\Tymon\JWTAuth\Exceptions\JWTException $e) {
+            return response()->json(['message' => 'Token absent'], 401);
         } catch (\Throwable $th) {
             return response()->json([
                 "message" => "Erreur lors de la récupération de l'utilisateur !",
@@ -75,4 +88,5 @@ class AuthController extends Controller
             ], 500);
         }
     }
+
 }
