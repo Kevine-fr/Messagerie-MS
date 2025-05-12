@@ -1,0 +1,8 @@
+{
+  "build": {
+    "dockerfile": "message_service/Dockerfile.consumer"
+  },
+  "deploy": {
+    "startCommand": "node services/kafkaConsumer.js"
+  }
+}
