@@ -2,7 +2,7 @@ const { Kafka } = require('kafkajs');
 
 const kafka = new Kafka({
   clientId: 'nodejs-service',
-  brokers: ['kafka_messagerie:9092'],
+  brokers: [process.env.KAFKA_URL ?? 'kafka_messagerie:9092'],
 });
 
 const producer = kafka.producer();

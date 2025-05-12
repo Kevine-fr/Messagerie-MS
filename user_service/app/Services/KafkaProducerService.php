@@ -13,7 +13,7 @@ class KafkaProducerService
 
     public function __construct()
     {
-        $brokerList = config('kafka.brokers'); // nom du service dans docker-compose
+        $brokerList = config('kafka.brokers' , 'kafka_message:9092');
 
         $this->producer = KafkaProducerBuilder::create()
             ->withAdditionalBroker($brokerList)

@@ -4,7 +4,7 @@ const axios = require('axios');  // Pour faire la requête HTTP vers l'API
 // Créer un client Kafka
 const kafka = new Kafka({
   clientId: 'nodejs-service',
-  brokers: ['kafka_messagerie:9092'], // Assure-toi que c'est bien l'adresse de ton broker Kafka
+  brokers: [process.env.KAFKA_URL ?? 'kafka_messagerie:9092'], // Assure-toi que c'est bien l'adresse de ton broker Kafka
 });
 
 // Créer un consommateur

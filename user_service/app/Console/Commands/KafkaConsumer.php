@@ -21,7 +21,7 @@ class KafkaConsumer extends Command
 
         // Créer une instance du consommateur Kafka
         $consumer = new Consumer();
-        $consumer->addBrokers(config('kafka.brokers')); // Assure-toi de configurer les brokers Kafka dans le fichier .env
+        $consumer->addBrokers(config('kafka.brokers' , 'kafka_message:9092')); // Assure-toi de configurer les brokers Kafka dans le fichier .env
 
         foreach ($topics as $topic) {
             // Créer un consommateur pour chaque topic spécifié
