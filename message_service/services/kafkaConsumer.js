@@ -46,7 +46,7 @@ const run = async () => {
         // Faire une requête HTTP pour supprimer les messages de cet utilisateur
         try {
           // Remplacer localhost par le nom du service dans Docker
-          const response = await axios.delete(`http://message_service:3000/messages/sender/${userId}`);
+          const response = await axios.delete(`https://messagerie-ms-h20w.onrender.com/messages/sender/${userId}`);
           console.log('Réponse de la suppression des messages :', response.data);
         } catch (error) {
           console.error('Erreur lors de la suppression des messages:', error);
