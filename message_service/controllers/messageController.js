@@ -1,17 +1,37 @@
+const User = require('../models/User');
 const Message = require('../models/Message');
 const { sendToKafka } = require('../services/kafkaProducer');
 
 // ➕ Créer un message
 exports.createMessage = async (req, res) => {
   try {
-    const message = new Message(req.body);
+    const { senderId, receiverId, content } = req.body;
+
+    // Vérifie si l'expéditeur existe
+    const sender = await User.findOne({ user_id: senderId });
+    if (!sender) {
+      return res.status(404).json({ error: "Expéditeur introuvable dans le cache." });
+    }
+
+    // Vérifie si le destinataire existe
+    const receiver = await User.findOne({ user_id: receiverId });
+    if (!receiver) {
+      return res.status(404).json({ error: "Destinataire introuvable dans le cache." });
+    }
+
+    // Créer et sauvegarder le message
+    const message = new Message({
+      senderId,
+      receiverId,
+      content,
+    });
     await message.save();
 
+    // Envoi à Kafka
     await sendToKafka('message.created', {
-      message_id: message._id,
       content: message.content,
-      user_id: message.senderId,
-      createdAt: message.createdAt,
+      user_id: senderId,
+      receiver_id: receiverId,
     });
 
     res.status(201).json(message);
