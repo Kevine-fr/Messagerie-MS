@@ -1,30 +1,37 @@
-const express = require('express');
-const router = express.Router();
 const Message = require('../models/Message');
+const { sendToKafka } = require('../services/kafkaProducer');
 
 // ➕ Créer un message
-router.post('/', async (req, res) => {
+exports.createMessage = async (req, res) => {
   try {
     const message = new Message(req.body);
     await message.save();
+
+    await sendToKafka('message.created', {
+      message_id: message._id,
+      content: message.content,
+      user_id: message.senderId,
+      createdAt: message.createdAt,
+    });
+
     res.status(201).json(message);
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
-});
+};
 
 // 📥 Récupérer tous les messages
-router.get('/', async (req, res) => {
+exports.getAllMessages = async (req, res) => {
   try {
     const messages = await Message.find();
     res.json(messages);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
-});
+};
 
 // 📥 Récupérer un message par ID
-router.get('/:id', async (req, res) => {
+exports.getMessageById = async (req, res) => {
   try {
     const message = await Message.findById(req.params.id);
     if (!message) return res.status(404).json({ error: 'Message non trouvé' });
@@ -32,10 +39,10 @@ router.get('/:id', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
-});
+};
 
 // 📝 Mettre à jour un message
-router.put('/:id', async (req, res) => {
+exports.updateMessage = async (req, res) => {
   try {
     const message = await Message.findByIdAndUpdate(req.params.id, req.body, { new: true });
     if (!message) return res.status(404).json({ error: 'Message non trouvé' });
@@ -43,10 +50,10 @@ router.put('/:id', async (req, res) => {
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
-});
+};
 
 // ❌ Supprimer un message
-router.delete('/:id', async (req, res) => {
+exports.deleteMessage = async (req, res) => {
   try {
     const message = await Message.findByIdAndDelete(req.params.id);
     if (!message) return res.status(404).json({ error: 'Message non trouvé' });
@@ -54,36 +61,30 @@ router.delete('/:id', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
-});
+};
 
-router.get('/sender/:senderId', async (req, res) => {
+// 📥 Messages par senderId
+exports.getMessagesBySenderId = async (req, res) => {
   try {
-    // Convertir senderId en entier
     const senderId = parseInt(req.params.senderId);
-
-    // Vérifier que l'ID est valide
     if (isNaN(senderId)) {
       return res.status(400).json({ message: 'Le senderId doit être un entier.' });
     }
 
-    // Récupérer les messages en fonction du senderId
-    const messages = await Message.find({ senderId: senderId });
-
-    // Si aucun message n'est trouvé
+    const messages = await Message.find({ senderId });
     if (messages.length === 0) {
       return res.status(404).json({ message: 'Aucun message trouvé pour cet senderId.' });
     }
 
-    // Retourner les messages trouvés
     res.status(200).json(messages);
   } catch (err) {
-    // Gérer les erreurs
     console.error(err);
     res.status(500).json({ error: 'Une erreur est survenue.' });
   }
-});
+};
 
-router.delete('/sender/:senderId', async (req, res) => {
+// ❌ Supprimer les messages par senderId
+exports.deleteMessagesBySenderId = async (req, res) => {
   try {
     // Convertir senderId en entier
     const senderId = parseInt(req.params.senderId);
@@ -108,6 +109,38 @@ router.delete('/sender/:senderId', async (req, res) => {
     console.error(err);
     res.status(500).json({ error: 'Une erreur est survenue lors de la suppression des messages.' });
   }
-});
+}
 
-module.exports = router;
+exports.deleteAllMessages = async (req, res) => {
+  try {
+    const result = await Message.deleteMany({});
+    res.status(200).json({ message: `${result.deletedCount} message(s) supprimé(s).` });
+  } catch (err) {
+    res.status(500).json({ error: 'Erreur lors de la suppression de tous les messages.' });
+  }
+};
+
+// Nouvelle fonction utilisable par Kafka
+
+exports.deleteMessagesBySenderIdRaw = async (senderId) => {
+  try {
+    // Vérifie l'ID
+    if (typeof senderId !== 'number' || isNaN(senderId)) {
+      console.error('❌ Le senderId doit être un entier valide.');
+      return;
+    }
+
+    console.log(`🗑️ Suppression des messages pour le senderId ${senderId}...`);
+
+    const result = await Message.deleteMany({ senderId: senderId });
+
+    if (result.deletedCount === 0) {
+      console.warn(`⚠️ Aucun message trouvé pour le senderId ${senderId} à supprimer.`);
+    } else {
+      console.log(`✅ ${result.deletedCount} message(s) supprimé(s) pour le senderId ${senderId}.`);
+    }
+  } catch (err) {
+    console.error(`❌ Erreur lors de la suppression des messages : ${err.message}`);
+  }
+};
+

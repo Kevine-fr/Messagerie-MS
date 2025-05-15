@@ -8,51 +8,51 @@ const kafka = new Kafka({
 const producer = kafka.producer();
 const admin = kafka.admin();
 
+/**
+ * Crée un topic s'il n'existe pas déjà.
+ * @param {string} topic - Nom du topic à créer
+ */
 const createTopicIfNotExists = async (topic) => {
   try {
     await admin.connect();
     const topics = await admin.listTopics();
+
     if (!topics.includes(topic)) {
       await admin.createTopics({
         topics: [{ topic }],
       });
-      console.log(`Topic "${topic}" créé avec succès.`);
+      console.log(`✅ Topic "${topic}" créé.`);
     }
   } catch (error) {
-    console.error('Erreur lors de la création du topic:', error);
+    console.error('❌ Erreur création topic Kafka:', error);
   } finally {
     await admin.disconnect();
   }
 };
 
-const sendMessage = async (message) => {
+/**
+ * Envoie un message à un topic (créé automatiquement si nécessaire).
+ * @param {string} topic - Nom du topic
+ * @param {Object} payload - Données à envoyer
+ */
+const sendToKafka = async (topic, payload) => {
   try {
+    await createTopicIfNotExists(topic);
     await producer.connect();
-    // Créer le topic si nécessaire
-    await createTopicIfNotExists('message.sended');
 
-    // Envoi du message au topic 'message.sended'
     await producer.send({
-      topic: 'message.sended',
-      messages: [
-        {
-          value: JSON.stringify(message),
-        },
-      ],
+      topic,
+      messages: [{ value: JSON.stringify(payload) }],
     });
 
-    console.log(`Message envoyé à Kafka : ${JSON.stringify(message)}`);
+    console.log(`📤 Message envoyé à "${topic}" :`, payload);
   } catch (error) {
-    console.error('Erreur lors de l\'envoi du message à Kafka:', error);
+    console.error('❌ Erreur envoi Kafka:', error);
   } finally {
     await producer.disconnect();
   }
 };
 
-const newMessage = {
-  user_id: 1,
-  content: 'Ceci est un message.',
-  timestamp: new Date().toISOString(),
+module.exports = {
+  sendToKafka,
 };
-
-sendMessage(newMessage);

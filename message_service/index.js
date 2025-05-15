@@ -1,29 +1,37 @@
 const express = require('express');
-const mongoose = require('mongoose');
-require('dotenv').config(); // Assure-toi d’avoir un fichier .env
+require('dotenv').config(); // Charge les variables d'environnement
+const { connectDB } = require('./config/db'); // Connexion MongoDB via db.js
+
 const app = express();
-const port = process.env.PORT || 3000;
+const port = process.env.PORT ?? 3000;
 
 // Middleware pour parser le JSON
 app.use(express.json());
 
 // Connexion à MongoDB
-// index.js
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log('✅ Connecté à MongoDB'))
-  .catch(err => console.error('❌ Erreur MongoDB :', err));
+connectDB().then(() => {
+    console.log('🟢 Connecté à MongoDB');
+  })
+  .catch((err) => {
+    console.error('❌ Erreur de connexion à MongoDB:', err);
+  });
 
 // Import des routes
-const messageRoutes = require('./routes/messages');
+const messageRoutes = require('./routes/messageRoutes');
+const userRoutes = require('./routes/userRoutes');
+
 
 // Utilisation des routes
 app.use('/messages', messageRoutes);
+app.use('/user', userRoutes);
+
 
 // Route de test
 app.get('/', (req, res) => {
   res.send('Service Message is running... ✅');
 });
 
+// Démarrage du serveur
 app.listen(port, () => {
-  console.log(`🚀 Serveur en écoute sur http://localhost:${port}`);
+  console.log(`🟢 Service Message is running on http://localhost:${port}`);
 });

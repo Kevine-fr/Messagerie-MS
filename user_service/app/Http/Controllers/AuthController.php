@@ -5,13 +5,15 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Tymon\JWTAuth\Facades\JWTAuth;
 use App\Models\User;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Hash;
+use App\Services\KafkaProducerService;
 use Illuminate\Support\Facades\Validator;
 
 class AuthController extends Controller
 {
 
-    public function Register(Request $request)
+    public function Register(Request $request , KafkaProducerService $kafka)
     {
         try {
             $validator = Validator::make($request->all(), [
@@ -29,6 +31,16 @@ class AuthController extends Controller
                 'email' => $request->email,
                 'password' => Hash::make($request->password),
             ]);
+
+            try {
+            $kafka->send('user.created', [
+                'user_id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+            ]);
+        } catch (\Exception $e) {
+            Log::error("Kafka error: " . $e->getMessage());
+        }
     
             $token = JWTAuth::fromUser($user);
     
@@ -40,7 +52,9 @@ class AuthController extends Controller
         } catch (\Throwable $th) {
             return response()->json([
                 "message" => "Erreur lors de la création de l'utilisateur !",
-                "errors" => $th->getMessage()
+                "errors" => $th->getMessage(),
+                "line" => $th->getLine(),
+                "file" => $th->getFile()
             ], 500);
         }
     }

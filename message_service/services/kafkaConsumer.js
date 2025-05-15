@@ -1,52 +1,70 @@
+require('dotenv').config();
 const { Kafka } = require('kafkajs');
-const axios = require('axios');  // Pour faire la requête HTTP vers l'API
+const { connectDB } = require('../config/db');
+const kafkaHandlers = require('../controllers/kafkaHandlerController');
 
-// Créer un client Kafka
+// Dans l'environnement de Développement, on a besoin de fournir que ces informations //
 const kafka = new Kafka({
   clientId: 'nodejs-service',
-  brokers: [process.env.KAFKA_URL ?? 'kafka_messagerie:9092'], // Assure-toi que c'est bien l'adresse de ton broker Kafka
+  brokers: [process.env.KAFKA_URL ?? 'kafka_messagerie:9092'],
 });
 
-// Créer un consommateur
+// Dans l'environnement de Production, on a besoin de fournir que ces informations //
+// const kafka = new Kafka({
+//   clientId: 'nodejs-service',
+//   brokers: [process.env.KAFKA_URL ?? 'kafka_messagerie:9092'],
+//   ssl: true,
+//   sasl: {
+//     mechanism: "plain",
+//     username: process.env.API_KEY,
+//     password: process.env.API_SECRET
+//   }
+// });
+
 const consumer = kafka.consumer({ groupId: 'nodejs-consumer-group' });
 
+// 🔁 Mapping topic → handler
+const topicHandlers = {
+  'user.deleted': kafkaHandlers.handleUserDeleted,
+  'user.created': kafkaHandlers.handleUserCreated,
+  
+  // Je peux ajouter ici d'autres topics à écouter et leurs handlers
+};
+
 const run = async () => {
-  // Connexion au Kafka broker
+  // Connexion à la base de données MongoDB
+// await connectDB()
+//     .then(() => {
+//       console.log('🟢 Connecté à MongoDB');
+//     })
+//     .catch((err) => {
+//       console.error('❌ Erreur de connexion à MongoDB:', err);
+//     });
+
   await consumer.connect();
 
-  // S'abonner au topic 'user.deleted'
-  await consumer.subscribe({ topic: 'user.deleted', fromBeginning: true });
+  // 🔁 S'abonner à tous les topics définis dans topicHandlers
+  for (const topic of Object.keys(topicHandlers)) {
+    await consumer.subscribe({ topic, fromBeginning: false });
+    console.log(`🟢 Abonné au topic "${topic}"`);
+  }
 
-  // Consommer les messages
   await consumer.run({
     eachMessage: async ({ topic, partition, message }) => {
       try {
-        // Extraire l'objet du message Kafka
-        const messageData = JSON.parse(message.value.toString()); // Le message JSON envoyé depuis Laravel
-        
-        console.log('Message reçu:', messageData); // Log le message pour vérifier sa structure
+        const value = message.value.toString();
+        const data = JSON.parse(value);
 
-        // Utilisation directe de user_id sans passer par payload
-        const userId = messageData.user_id;
+        console.log(`📩 Message reçu sur topic "${topic}":`, data);
 
-        // Si user_id est undefined, on ne fait rien
-        if (!userId) {
-          console.log('Erreur: user_id est manquant dans le message.');
-          return;
+        const handler = topicHandlers[topic];
+        if (handler) {
+          await handler(data); // Appel de la fonction correspondante
+        } else {
+          console.warn(`⚠️ Aucun handler défini pour le topic: ${topic}`);
         }
-
-        console.log(`Message reçu pour l'utilisateur supprimé avec user_id : ${userId}`);
-
-        // Faire une requête HTTP pour supprimer les messages de cet utilisateur
-        try {
-          // Remplacer localhost par le nom du service dans Docker
-          const response = await axios.delete(`http://message_service:3000/messages/sender/${userId}`);
-          console.log('Réponse de la suppression des messages :', response.data);
-        } catch (error) {
-          console.error('Erreur lors de la suppression des messages:', error);
-        }
-      } catch (error) {
-        console.error('Erreur lors du traitement du message Kafka:', error);
+      } catch (err) {
+        console.error(`❌ Erreur traitement message sur topic "${topic}":`, err.message);
       }
     },
   });

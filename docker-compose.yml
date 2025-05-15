@@ -59,7 +59,7 @@ services:
     volumes:
       - .:/workspace
     working_dir: /workspace/user_service
-    command: sh -c "composer install && php artisan serve --host=0.0.0.0 --port=8000"
+    command: sh -c "composer install && cp .env.example .env && php artisan optimize && php artisan key:generate && php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=8000"
 
   zookeeper:
     image: bitnami/zookeeper:latest
@@ -128,6 +128,7 @@ services:
     working_dir: /workspace/message_service
     environment:
       - MONGO_URI=mongodb://mongodb:27017/messages_db
+    command: sh -c "npm install && node index.js"
 
   apigateway:
     build:
@@ -145,6 +146,7 @@ services:
     volumes:
       - .:/workspace
     working_dir: /workspace/apigateway
+    command: sh -c "npm install && node index.js"
     environment:
       - USER_SERVICE_URL=http://user_service:8000
       - MESSAGE_SERVICE_URL=http://message_service:3000

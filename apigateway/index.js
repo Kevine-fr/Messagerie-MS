@@ -10,7 +10,7 @@ const userService = process.env.USER_SERVICE_URL || 'http://user_service:8000';
 const messageService = process.env.MESSAGE_SERVICE_URL || 'http://message_service:3000';
 
 // Clé secrète pour valider les tokens JWT (doit être la même que celle utilisée dans Laravel)
-const JWT_SECRET = process.env.JWT_SECRET || 'super-secret';
+const JWT_SECRET = process.env.JWT_SECRET ?? 'BQbrDxP4WWoMDUeTaTDeEs8wSsizAulUkAEuhCkua13s5wsP0MzN6kBovKz1djtQ';
 
 // Middleware pour vérifier le token JWT
 function authenticateToken(req, res, next) {

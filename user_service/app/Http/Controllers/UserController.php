@@ -30,6 +30,16 @@ class UserController extends Controller
     public function GetAllUsers()
     {
         $users = User::all();
+        Log::info("Récupération de tous les utilisateurs : " . $users);
+
         return response()->json($users);
+    }
+
+    public function Test()
+    {
+        $users = User::all();
+        Log::info("Consommation du message sended : " . $users);
+
+        return response()->json(['message' => 'Test']);
     }
 }
