@@ -42,8 +42,11 @@ function createServiceProxy(target, pathPrefix) {
   });
 }
 
-// Routes protégées par JWT
-app.use('/service/user', authenticateToken, createServiceProxy(userService, '/service/user'));
+// USER SERVICE
+app.use('/service/user/public', createServiceProxy(userService, '/service/user/public'));
+app.use('/service/user/private', authenticateToken, createServiceProxy(userService, '/service/user/private'));
+
+// MESSAGE SERVICE (tout protégé)
 app.use('/service/message', authenticateToken, createServiceProxy(messageService, '/service/message'));
 
 // Route test non protégée

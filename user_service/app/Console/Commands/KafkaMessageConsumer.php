@@ -11,7 +11,7 @@ use App\Http\Controllers\UserController;
 
 class KafkaMessageConsumer extends Command
 {
-    protected $signature = 'kafka:consume-messages {topics=user.deleted,message.created}';
+    protected $signature = 'kafka:consume {topics=user.deleted,message.created}';
     protected $description = 'Consomme les messages depuis Kafka pour plusieurs topics';
     private $messageCount = 0;
 

@@ -25,6 +25,7 @@ exports.createMessage = async (req, res) => {
       receiverId,
       content,
     });
+
     await message.save();
 
     // Envoi à Kafka
@@ -163,4 +164,82 @@ exports.deleteMessagesBySenderIdRaw = async (senderId) => {
     console.error(`❌ Erreur lors de la suppression des messages : ${err.message}`);
   }
 };
+
+// 🔍 Récupérer le dernier message entre deux utilisateurs
+exports.getLastMessageBetweenUsers = async (req, res) => {
+  try {
+    const { senderId, receiverId } = req.params;
+
+    const message = await Message.findOne({
+      $or: [
+        { senderId, receiverId },
+        { senderId: receiverId, receiverId: senderId }
+      ]
+    }).sort({ createdAt: -1 }); // le plus récent en premier
+
+    if (!message) {
+      return res.status(404).json({ message: "Aucun message trouvé entre ces utilisateurs." });
+    }
+
+    res.status(200).json(message);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// 📜 Récupérer tous les messages entre deux utilisateurs
+exports.getAllMessagesBetweenUsers = async (req, res) => {
+  try {
+    const { senderId, receiverId } = req.params;
+
+    const messages = await Message.find({
+      $or: [
+        { senderId, receiverId },
+        { senderId: receiverId, receiverId: senderId }
+      ]
+    }).sort({ createdAt: 1 }); // du plus ancien au plus récent
+
+    res.status(200).json(messages);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.countUnreadMessagesBetweenUsers = async (req, res) => {
+  try {
+    const { senderId, receiverId } = req.params;
+
+    const count = await Message.countDocuments({
+      senderId,
+      receiverId,
+      isRead: false
+    });
+
+    res.status(200).json({ unreadCount: count });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.markMessagesAsRead = async (req, res) => {
+  try {
+    const { senderId, receiverId } = req.params;
+
+    const result = await Message.updateMany(
+      {
+        senderId,
+        receiverId,
+        isRead: false
+      },
+      { $set: { isRead: true } }
+    );
+
+    res.status(200).json({ message: `${result.modifiedCount} messages marqués comme lus.` });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
+
 
