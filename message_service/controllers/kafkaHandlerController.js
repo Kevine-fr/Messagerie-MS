@@ -26,9 +26,9 @@ exports.handleUserDeleted = async (data) => {
 };
 
 exports.handleUserCreated = async (data) => {
-  const { user_id, name, email } = data;
+  const { user_id, name, photo } = data;
 
-  if (!user_id || !name || !email) {
+  if (!user_id || !name) {
     console.log('❌ Données utilisateur manquantes');
     return;
   }
@@ -39,7 +39,7 @@ exports.handleUserCreated = async (data) => {
     const response = await axios.post(`${message_serviceUrl}/user`, {
       user_id,
       name,
-      email
+      photo
     });
     console.log(`✅ Utilisateur ${user_id} créé !`);
   } catch (error) {

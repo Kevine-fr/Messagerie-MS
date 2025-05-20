@@ -37,7 +37,7 @@ class UserController extends Controller
             $userExist = User::where('email', $email)->exists();
 
             if ($userExist) {
-                return response()->json(["message" => "Cet email est déjà lié à un compte !"]);
+                return response()->json(["message" => "Cet email est déjà lié à un compte !"] , 409);
             }
 
             $code = $this->GenerateCode();

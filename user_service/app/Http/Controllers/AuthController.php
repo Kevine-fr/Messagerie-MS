@@ -54,7 +54,7 @@ class AuthController extends Controller
             $kafka->send('user.created', [
                 'user_id' => $user->id,
                 'name' => $user->name,
-                'email' => $user->email,
+                'photo' => $url,
             ]);
         } catch (\Exception $e) {
             Log::error("Kafka error: " . $e->getMessage());
@@ -86,7 +86,18 @@ class AuthController extends Controller
                 return response()->json(['error' => 'Identifiants invalides'], 401);
             }
 
-            return response()->json(['token' => $token]);
+            $user = JWTAuth::user();
+
+            return response()->json([
+                'message' => 'Connexion réussie',
+                'token' => $token,
+                'data' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'photo' => $user->photo
+                ]
+            ]);
         } catch (\Throwable $th) {
             return response()->json([
                 "message" => "Erreur lors de la connexion !",
@@ -95,7 +106,8 @@ class AuthController extends Controller
         }
     }
 
-    public function logout(Request $request)
+
+    public function Logout(Request $request)
     {
         try {
             $token = $request->bearerToken();
@@ -107,10 +119,17 @@ class AuthController extends Controller
                 ], 400);
             }
 
-            JWTAuth::setToken($token)->invalidate();
+            $user = JWTAuth::setToken($token)->authenticate();
+            JWTAuth::invalidate($token);
 
             return response()->json([
-                'message' => 'Déconnexion réussie'
+                'message' => 'Déconnexion réussie',
+                'data' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'photo' => $user->photo
+                ]
             ], 200);
 
         } catch (JWTException $e) {
@@ -125,6 +144,7 @@ class AuthController extends Controller
             ], 500);
         }
     }
+
 
     public function Me()
     {
