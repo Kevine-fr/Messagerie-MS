@@ -1,34 +1,30 @@
 const User = require('../models/User');
 const Message = require('../models/Message');
 const { sendToKafka } = require('../services/kafkaProducer');
+const socket = require('../config/socket'); 
 
-// ➕ Créer un message
 exports.createMessage = async (req, res) => {
   try {
     const { senderId, receiverId, content } = req.body;
 
-    // Vérifie si l'expéditeur existe
-    const sender = await User.findOne({ user_id: senderId });
-    if (!sender) {
-      return res.status(404).json({ error: "Expéditeur introuvable dans le cache." });
-    }
+    // Vérifications...
 
-    // Vérifie si le destinataire existe
-    const receiver = await User.findOne({ user_id: receiverId });
-    if (!receiver) {
-      return res.status(404).json({ error: "Destinataire introuvable dans le cache." });
-    }
-
-    // Créer et sauvegarder le message
     const message = new Message({
       senderId,
       receiverId,
       content,
     });
-
     await message.save();
 
-    // Envoi à Kafka
+    // Récupérer l'instance io depuis le module socket.js
+    const io = socket.getIO();
+
+    io.emit('new_message', {
+      from: senderId,
+      to: receiverId,
+      content,
+    });
+
     await sendToKafka('message.created', {
       content: message.content,
       user_id: senderId,
@@ -40,6 +36,7 @@ exports.createMessage = async (req, res) => {
     res.status(400).json({ error: err.message });
   }
 };
+
 
 // 📥 Récupérer tous les messages
 exports.getAllMessages = async (req, res) => {

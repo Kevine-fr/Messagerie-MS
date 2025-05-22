@@ -99,7 +99,7 @@ exports.allConversation = async (req, res) => {
           { senderId: currentUserId, receiverId: otherUserId },
           { senderId: otherUserId, receiverId: currentUserId },
         ]
-      }).sort({ timestamp: -1 }); // dernier message
+      }).sort({ createdAt: -1 }); // dernier message
 
       // 3. Nombre de messages non lus venant de ce user vers l'utilisateur connecté
       const unreadCount = await Message.countDocuments({
