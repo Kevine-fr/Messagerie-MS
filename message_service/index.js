@@ -7,49 +7,33 @@ const socket = require('./config/socket');
 const app = express();
 const port = process.env.PORT ?? 3000;
 
-// Middleware JSON
 app.use(express.json());
 
-// Routes (import)
+// Routes
 const messageRoutes = require('./routes/messageRoutes');
 const userRoutes = require('./routes/userRoutes');
-
-// Routes
 app.use('/messages', messageRoutes);
 app.use('/user', userRoutes);
 
-// Route test
+// Test
 app.get('/', (req, res) => {
   res.send('Service Message is running... ✅');
 });
 
-// Serveur HTTP
+// Serveur
 const server = http.createServer(app);
 
-// Initialisation Socket.IO via socket.js
-const io = socket.init(server);
+// Initialise Socket.IO
+socket.init(server);
 
-io.on('connection', (socket) => {
-  console.log('🔌 Un client est connecté :', socket.id);
-
-  socket.on('send_message', (data) => {
-    console.log('Message reçu:', data);
-    io.emit('receive_message', data);
-  });
-
-  socket.on('disconnect', () => {
-    console.log('❌ Client déconnecté:', socket.id);
-  });
-});
-
-// Connexion DB et démarrage serveur
+// Démarre tout
 connectDB()
   .then(() => {
     console.log('🟢 Connecté à MongoDB');
     server.listen(port, '0.0.0.0', () => {
-      console.log(`🟢 Service Message is running on http://0.0.0.0:${port}`);
+      console.log(`🚀 Service Message en ligne sur http://0.0.0.0:${port}`);
     });
   })
   .catch((err) => {
-    console.error('❌ Erreur de connexion à MongoDB:', err);
+    console.error('❌ Erreur MongoDB:', err);
   });

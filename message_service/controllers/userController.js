@@ -99,7 +99,7 @@ exports.allConversation = async (req, res) => {
           { senderId: currentUserId, receiverId: otherUserId },
           { senderId: otherUserId, receiverId: currentUserId },
         ]
-      }).sort({ createdAt: -1 }); // dernier message
+      }).sort({ createdAt: -1 });
 
       // 3. Nombre de messages non lus venant de ce user vers l'utilisateur connecté
       const unreadCount = await Message.countDocuments({
@@ -115,12 +115,15 @@ exports.allConversation = async (req, res) => {
       };
     }));
 
-    res.status(200).json(conversations);
+    // 4. Trier les conversations par date de création du dernier message (createdAt), décroissante
+    conversations.sort((a, b) => {
+      const dateA = a.lastMessage?.createdAt ? new Date(a.lastMessage.createdAt) : new Date(0);
+      const dateB = b.lastMessage?.createdAt ? new Date(b.lastMessage.createdAt) : new Date(0);
+      return dateB - dateA;
+    });
 
+    res.status(200).json(conversations);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
-
-
-

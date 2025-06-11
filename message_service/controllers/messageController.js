@@ -7,7 +7,21 @@ exports.createMessage = async (req, res) => {
   try {
     const { senderId, receiverId, content } = req.body;
 
-    // Vérifications...
+    // Vérifie si l'expéditeur existe
+    const sender = await User.findOne({ user_id: senderId });
+    if (!sender) {
+      return res.status(404).json({ error: "Expéditeur introuvable dans le cache." });
+    }
+
+    // Vérifie si le destinataire existe
+    const receiver = await User.findOne({ user_id: receiverId });
+    if (!receiver) {
+      return res.status(404).json({ error: "Destinataire introuvable dans le cache." });
+    }
+
+    if (senderId === receiverId){
+      return res.status(409).json({error : "Vous ne pouvez pas vous envoyez un message à vous même !"})
+    }
 
     const message = new Message({
       senderId,
@@ -18,20 +32,24 @@ exports.createMessage = async (req, res) => {
 
     // Récupérer l'instance io depuis le module socket.js
     const io = socket.getIO();
+    const receiverSocketId = socket.getUserSocketId(receiverId);
 
-    io.emit('new_message', {
-      from: senderId,
-      to: receiverId,
-      content,
-    });
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("new_message", {
+        from: senderId,
+        to: receiverId,
+        content,
+      });
+    }
 
+    // Envoie le topic 'message.created' vers le Message Brocker 'Kafka'
     await sendToKafka('message.created', {
       content: message.content,
       user_id: senderId,
       receiver_id: receiverId,
     });
 
-    res.status(201).json(message);
+    res.status(201).json([message]);
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
@@ -64,17 +82,40 @@ exports.updateMessage = async (req, res) => {
   try {
     const message = await Message.findByIdAndUpdate(req.params.id, req.body, { new: true });
     if (!message) return res.status(404).json({ error: 'Message non trouvé' });
+
+    const io = socket.getIO();
+    const receiverSocketId = socket.getUserSocketId(message.receiverId);
+    const senderSocketId = socket.getUserSocketId(message.senderId);
+
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("message_updated", message);
+    }
+    if (senderSocketId) {
+      io.to(senderSocketId).emit("message_updated", message);
+    }
+
     res.json(message);
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
 };
 
-// ❌ Supprimer un message
 exports.deleteMessage = async (req, res) => {
   try {
     const message = await Message.findByIdAndDelete(req.params.id);
     if (!message) return res.status(404).json({ error: 'Message non trouvé' });
+
+    const io = socket.getIO();
+    const receiverSocketId = socket.getUserSocketId(message.receiverId);
+    const senderSocketId = socket.getUserSocketId(message.senderId);
+
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("message_deleted", { messageId: req.params.id });
+    }
+    if (senderSocketId) {
+      io.to(senderSocketId).emit("message_deleted", { messageId: req.params.id });
+    }
+
     res.json({ message: 'Message supprimé' });
   } catch (err) {
     res.status(500).json({ error: err.message });
