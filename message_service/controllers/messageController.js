@@ -1,48 +1,54 @@
 const User = require('../models/User');
+const socket = require('../config/socket'); 
 const Message = require('../models/Message');
 const { sendToKafka } = require('../services/kafkaProducer');
-const socket = require('../config/socket'); 
+const { getIO, getUserSocketId, isUserInConversationWith } = require('../config/socket');
 
 exports.createMessage = async (req, res) => {
   try {
     const { senderId, receiverId, content } = req.body;
 
-    // Vérifie si l'expéditeur existe
     const sender = await User.findOne({ user_id: senderId });
     if (!sender) {
-      return res.status(404).json({ error: "Expéditeur introuvable dans le cache." });
+      return res.status(404).json({ error: "Expéditeur introuvable." });
     }
 
-    // Vérifie si le destinataire existe
     const receiver = await User.findOne({ user_id: receiverId });
     if (!receiver) {
-      return res.status(404).json({ error: "Destinataire introuvable dans le cache." });
+      return res.status(404).json({ error: "Destinataire introuvable." });
     }
 
-    if (senderId === receiverId){
-      return res.status(409).json({error : "Vous ne pouvez pas vous envoyez un message à vous même !"})
+    if (senderId === receiverId) {
+      return res.status(409).json({ error: "Vous ne pouvez pas vous envoyer un message à vous-même." });
     }
+
+    const isRecipientInConversation = isUserInConversationWith(receiverId, senderId);
 
     const message = new Message({
       senderId,
       receiverId,
       content,
+      isRead: isRecipientInConversation,
     });
+
     await message.save();
 
-    // Récupérer l'instance io depuis le module socket.js
-    const io = socket.getIO();
-    const receiverSocketId = socket.getUserSocketId(receiverId);
+    const io = getIO();
+    const receiverSocketId = getUserSocketId(receiverId);
 
     if (receiverSocketId) {
       io.to(receiverSocketId).emit("new_message", {
-        from: senderId,
-        to: receiverId,
-        content,
+        message: {
+          _id: message._id,
+          senderId,
+          receiverId,
+          content,
+          isRead: message.isRead,
+          createdAt: message.createdAt,
+        },
       });
     }
 
-    // Envoie le topic 'message.created' vers le Message Brocker 'Kafka'
     await sendToKafka('message.created', {
       content: message.content,
       user_id: senderId,
@@ -55,8 +61,6 @@ exports.createMessage = async (req, res) => {
   }
 };
 
-
-// 📥 Récupérer tous les messages
 exports.getAllMessages = async (req, res) => {
   try {
     const messages = await Message.find();
@@ -66,7 +70,6 @@ exports.getAllMessages = async (req, res) => {
   }
 };
 
-// 📥 Récupérer un message par ID
 exports.getMessageById = async (req, res) => {
   try {
     const message = await Message.findById(req.params.id);
@@ -77,7 +80,6 @@ exports.getMessageById = async (req, res) => {
   }
 };
 
-// 📝 Mettre à jour un message
 exports.updateMessage = async (req, res) => {
   try {
     const message = await Message.findByIdAndUpdate(req.params.id, req.body, { new: true });
@@ -122,7 +124,6 @@ exports.deleteMessage = async (req, res) => {
   }
 };
 
-// 📥 Messages par senderId
 exports.getMessagesBySenderId = async (req, res) => {
   try {
     const senderId = parseInt(req.params.senderId);
@@ -142,29 +143,23 @@ exports.getMessagesBySenderId = async (req, res) => {
   }
 };
 
-// ❌ Supprimer les messages par senderId
 exports.deleteMessagesBySenderId = async (req, res) => {
   try {
-    // Convertir senderId en entier
     const senderId = parseInt(req.params.senderId);
 
-    // Vérifier que l'ID est valide
     if (isNaN(senderId)) {
       return res.status(400).json({ message: 'Le senderId doit être un entier.' });
     }
 
-    // Supprimer tous les messages du senderId
     const result = await Message.deleteMany({ senderId: senderId });
 
-    // Si aucun message n'est supprimé
     if (result.deletedCount === 0) {
       return res.status(404).json({ message: 'Aucun message trouvé pour cet senderId à supprimer.' });
     }
 
-    // Retourner le nombre de messages supprimés
     res.status(200).json({ message: `${result.deletedCount} message(s) supprimé(s).` });
   } catch (err) {
-    // Gérer les erreurs
+
     console.error(err);
     res.status(500).json({ error: 'Une erreur est survenue lors de la suppression des messages.' });
   }
@@ -179,7 +174,6 @@ exports.deleteAllMessages = async (req, res) => {
   }
 };
 
-// Nouvelle fonction utilisable par Kafka
 
 exports.deleteMessagesBySenderIdRaw = async (senderId) => {
   try {
@@ -203,7 +197,6 @@ exports.deleteMessagesBySenderIdRaw = async (senderId) => {
   }
 };
 
-// 🔍 Récupérer le dernier message entre deux utilisateurs
 exports.getLastMessageBetweenUsers = async (req, res) => {
   try {
     const { senderId, receiverId } = req.params;
@@ -213,7 +206,7 @@ exports.getLastMessageBetweenUsers = async (req, res) => {
         { senderId, receiverId },
         { senderId: receiverId, receiverId: senderId }
       ]
-    }).sort({ createdAt: -1 }); // le plus récent en premier
+    }).sort({ createdAt: -1 });
 
     if (!message) {
       return res.status(404).json({ message: "Aucun message trouvé entre ces utilisateurs." });
@@ -225,7 +218,6 @@ exports.getLastMessageBetweenUsers = async (req, res) => {
   }
 };
 
-// 📜 Récupérer tous les messages entre deux utilisateurs
 exports.getAllMessagesBetweenUsers = async (req, res) => {
   try {
     const { senderId, receiverId } = req.params;
@@ -235,7 +227,7 @@ exports.getAllMessagesBetweenUsers = async (req, res) => {
         { senderId, receiverId },
         { senderId: receiverId, receiverId: senderId }
       ]
-    }).sort({ createdAt: 1 }); // du plus ancien au plus récent
+    }).sort({ createdAt: 1 }); 
 
     res.status(200).json(messages);
   } catch (err) {
