@@ -1,29 +1,39 @@
 const express = require('express');
-const mongoose = require('mongoose');
-require('dotenv').config(); // Assure-toi d’avoir un fichier .env
-const app = express();
-const port = process.env.PORT || 3000;
+const http = require('http');
+require('dotenv').config();
+const { connectDB } = require('./config/db');
+const socket = require('./config/socket');
 
-// Middleware pour parser le JSON
+const app = express();
+const port = process.env.PORT ?? 3000;
+
 app.use(express.json());
 
-// Connexion à MongoDB
-// index.js
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log('✅ Connecté à MongoDB'))
-  .catch(err => console.error('❌ Erreur MongoDB :', err));
-
-// Import des routes
-const messageRoutes = require('./routes/messages');
-
-// Utilisation des routes
+// Routes
+const messageRoutes = require('./routes/messageRoutes');
+const userRoutes = require('./routes/userRoutes');
 app.use('/messages', messageRoutes);
+app.use('/user', userRoutes);
 
-// Route de test
+// Test
 app.get('/', (req, res) => {
   res.send('Service Message is running... ✅');
 });
 
-app.listen(port, () => {
-  console.log(`🚀 Serveur en écoute sur http://localhost:${port}`);
-});
+// Serveur
+const server = http.createServer(app);
+
+// Initialise Socket.IO
+socket.init(server);
+
+// Démarre tout
+connectDB()
+  .then(() => {
+    console.log('🟢 Connecté à MongoDB');
+    server.listen(port, '0.0.0.0', () => {
+      console.log(`🚀 Service Message en ligne sur http://0.0.0.0:${port}`);
+    });
+  })
+  .catch((err) => {
+    console.error('❌ Erreur MongoDB:', err);
+  });
