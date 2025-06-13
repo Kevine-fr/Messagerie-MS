@@ -30,18 +30,18 @@ class AuthController extends Controller
             }
 
             $url = null;
-            $photo = $request->file('photo');
+            // $photo = $request->file('photo');
 
-            if($photo != null){
-                $uploadResult = CloudinaryFacade::uploadApi()->upload(
-                $photo->getRealPath(),
-                    [
-                        'folder' => 'Messagerie-mS',
-                        'resource_type' => 'image',
-                    ]
-                );
-                $url = $uploadResult['secure_url'];
-            }
+            // if($photo != null){
+            //     $uploadResult = CloudinaryFacade::uploadApi()->upload(
+            //     $photo->getRealPath(),
+            //         [
+            //             'folder' => 'Messagerie-mS',
+            //             'resource_type' => 'image',
+            //         ]
+            //     );
+            //     $url = $uploadResult['secure_url'];
+            // }
             
             $user = User::create([
                 'name' => $request->name,
