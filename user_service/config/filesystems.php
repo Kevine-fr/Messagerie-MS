@@ -60,6 +60,14 @@ return [
             'report' => false,
         ],
 
+        // Mon ajout !
+        'cloudinary' => [
+            'driver' => 'cloudinary',
+            'cloud'  => env('CLOUDINARY_CLOUD_NAME'),
+            'key'    => env('CLOUDINARY_API_KEY'),
+            'secret' => env('CLOUDINARY_API_SECRET'),
+            'secure' => true,
+        ],
     ],
 
     /*
@@ -76,5 +84,4 @@ return [
     'links' => [
         public_path('storage') => storage_path('app/public'),
     ],
-
 ];
