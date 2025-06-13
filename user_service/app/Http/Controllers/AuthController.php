@@ -197,7 +197,7 @@ class AuthController extends Controller
         }
     }
 
-    public function Update(Request $request)
+    public function Update(Request $request , KafkaProducerService $kafka)
     {
         try {
             $user = JWTAuth::parseToken()->authenticate();
@@ -229,6 +229,16 @@ class AuthController extends Controller
             }
 
             $user->save();
+
+            try {
+            $kafka->send('user.updated', [
+                'user_id' => $user->id,
+                'name' => $user->name,
+                'photo' => $user->photo,
+                ]);
+            } catch (\Exception $e) {
+                Log::error("Kafka error: " . $e->getMessage());
+            }
 
             return response()->json([
                 'message' => 'Compte mis à jour avec succès !',

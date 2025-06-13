@@ -27,6 +27,7 @@ const consumer = kafka.consumer({ groupId: 'nodejs-consumer-group' });
 const topicHandlers = {
   'user.deleted': kafkaHandlers.handleUserDeleted,
   'user.created': kafkaHandlers.handleUserCreated,
+  'user.updated': kafkaHandlers.handleUserUpdated,
   
   // Je peux ajouter ici d'autres topics à écouter et leurs handlers
 };

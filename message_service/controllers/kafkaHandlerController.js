@@ -13,16 +13,23 @@ exports.handleUserDeleted = async (data) => {
     return;
   }
 
-  console.log(`🟢 Suppression des messages de l'utilisateur ${senderId}`);
+  console.log(`🟢 Suppression des messages et de l'utilisateur ${senderId}`);
 
-  // await messageController.deleteMessagesBySenderIdRaw(senderId);
-  await axios.delete(`${message_serviceUrl}/messages/sender/${senderId}`)
-    .then((response) => {
-      console.log(`✅ Messages supprimés pour l'utilisateur ${senderId}:`, response.data);
-    })
-    .catch((error) => {
-      console.error(`❌ Erreur lors de la suppression des messages pour l'utilisateur ${senderId}:`, error.message);
-    });
+  try {
+    // Suppression des messages de l'utilisateur
+    const msgRes = await axios.delete(`${message_serviceUrl}/messages/sender/${senderId}`);
+    console.log(`✅ Messages supprimés pour l'utilisateur ${senderId}:`, msgRes.data);
+  } catch (error) {
+    console.error(`❌ Erreur lors de la suppression des messages pour l'utilisateur ${senderId}:`, error.response?.data || error.message);
+  }
+
+  try {
+    // Suppression de l'utilisateur dans le service user
+    const userRes = await axios.delete(`${message_serviceUrl}/user/${senderId}`);
+    console.log(`✅ Utilisateur ${senderId} supprimé !`, userRes.data);
+  } catch (error) {
+    console.error(`❌ Erreur lors de la suppression de l'utilisateur ${senderId}:`, error.response?.data || error.message);
+  }
 };
 
 exports.handleUserCreated = async (data) => {
@@ -44,6 +51,28 @@ exports.handleUserCreated = async (data) => {
     console.log(`✅ Utilisateur ${user_id} créé !`);
   } catch (error) {
     console.error(`❌ Erreur lors de la création de l'utilisateur ${user_id}:`, error.message);
+  }
+};
+
+exports.handleUserUpdated = async (data) => {
+  const { user_id, name, photo } = data;
+
+  if (!user_id || !name) {
+    console.log('❌ Données utilisateur manquantes');
+    return;
+  }
+
+  console.log(`🟢 Modification de l'utilisateur ${user_id}`);
+
+  try {
+    await axios.put(`${message_serviceUrl}/user/${user_id}`, {
+      name,
+      photo,
+    });
+
+    console.log(`✅ Utilisateur ${user_id} modifié !`);
+  } catch (error) {
+    console.error(`❌ Erreur lors de la modification de l'utilisateur ${user_id}:`, error.message);
   }
 };
 

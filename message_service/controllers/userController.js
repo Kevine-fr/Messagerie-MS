@@ -45,18 +45,32 @@ exports.getUserById = async (req, res) => {
   }
 };
 
-exports.updateUserById = async (req, res) => {
-  try {
-    const updatedUser = await User.findOneAndUpdate(
-      { user_id: req.params.user_id },
-      req.body,
-      { new: true }
-    );
-    if (!updatedUser) return res.status(404).json({ message: 'Utilisateur non trouvé' });
+const mongoose = require('mongoose'); // si tu veux vérifier l'ObjectId
 
-    res.status(200).json(updatedUser);
+exports.updateUserById = async (req, res) => {
+  const { name, photo } = req.body;
+  const { user_id } = req.params;
+
+  if (!user_id || typeof name !== 'string' || name.trim() === '') {
+    return res.status(400).json({ error: "Champs requis manquants ou invalides" });
+  }
+
+  try {
+    const existingUser = await User.findOne({ user_id: Number(user_id) });
+
+    if (!existingUser) {
+      return res.status(404).json({ error: "Utilisateur non trouvé" });
+    }
+
+    const updateResult = await User.updateOne({ user_id: Number(user_id) }, { name, photo });
+
+    if (updateResult.modifiedCount === 0) {
+      return res.status(200).json({ message: "Aucune modification effectuée", update: updateResult });
+    }
+
+    return res.json({ message: "Utilisateur mis à jour", update: updateResult });
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    return res.status(500).json({ error: err.message });
   }
 };
 
