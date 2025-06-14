@@ -42,7 +42,7 @@ await connectDB()
   await consumer.connect();
 
   for (const topic of Object.keys(topicHandlers)) {
-    await consumer.subscribe({ topic, fromBeginning: false });
+    await consumer.subscribe({ topic, fromBeginning: true });
     console.log(`🟢 Abonné au topic "${topic}"`);
   }
 
