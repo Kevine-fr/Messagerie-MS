@@ -30,7 +30,7 @@ const topicHandlers = {
   };
 
 const run = async () => {
-  Connexion à la base de données MongoDB
+  // Connexion à la base de données MongoDB
 await connectDB()
     .then(() => {
       console.log('🟢 Connecté à MongoDB');
