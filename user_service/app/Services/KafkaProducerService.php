@@ -5,6 +5,7 @@ namespace App\Services;
 use Jobcloud\Kafka\Message\KafkaProducerMessage;
 use Jobcloud\Kafka\Producer\KafkaProducerBuilder;
 use Jobcloud\Kafka\Producer\KafkaProducerInterface;
+use Jobcloud\Kafka\Producer\KafkaProducerException;
 
 class KafkaProducerService
 {
@@ -17,7 +18,7 @@ class KafkaProducerService
         $password = config('kafka.password');
 
         $this->producer = KafkaProducerBuilder::create()
-            ->withBrokers($brokerList) // correction : withBrokers au lieu de withAdditionalBroker
+            ->withAdditionalBroker($brokerList)
             ->withAdditionalConfig([
                 'security.protocol' => 'SASL_SSL',
                 'sasl.mechanisms' => 'PLAIN',
@@ -26,17 +27,19 @@ class KafkaProducerService
                 'ssl.endpoint.identification.algorithm' => 'https',
             ])
             ->build();
+
     }
 
     public function send(string $topic, array $payload): void
     {
         try {
-            $message = KafkaProducerMessage::create($topic)
+            $message = KafkaProducerMessage::create($topic, 0)
                 ->withBody(json_encode($payload))
                 ->withKey(uniqid());
 
-            $this->producer->produce($message);
-            $this->producer->flush(10000); // flush pour s'assurer que le message est envoyé
+                $this->producer->produce($message);
+                $this->producer->flush(10000);
+
 
             \Log::info('Message Kafka envoyé au topic ' . $topic, ['payload' => $payload]);
 
