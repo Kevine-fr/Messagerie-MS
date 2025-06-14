@@ -33,11 +33,13 @@ class KafkaProducerService
     public function send(string $topic, array $payload): void
     {
         try {
-            $message = KafkaProducerMessage::create($topic, 0) 
+            $message = KafkaProducerMessage::create($topic, 0)
                 ->withBody(json_encode($payload))
                 ->withKey(uniqid());
 
-            $this->producer->produce($message);
+                $this->producer->produce($message);
+                $this->producer->flush(10000);
+
 
             \Log::info('Message Kafka envoyé au topic ' . $topic, ['payload' => $payload]);
 
