@@ -1,14 +1,16 @@
+const { Server } = require('socket.io');
+
 let ioInstance;
-const users = new Map(); // userId => socketId
-const activeConversations = new Map(); // userId => Set(otherUserId)
+const users = new Map(); 
+const activeConversations = new Map(); 
 
 module.exports = {
   init: (server) => {
-    const { Server } = require('socket.io');
     ioInstance = new Server(server, {
       cors: {
-        origin: '*',
-        methods: ['GET', 'POST', 'DELETE', 'PUT'],
+        origin: process.env.CORS_ORIGIN, 
+        methods: ['GET', 'POST', 'PUT', 'DELETE'],
+        credentials: true,
       },
     });
 
@@ -21,11 +23,10 @@ module.exports = {
         console.log(`✅ Utilisateur ${userId} lié au socket ${socket.id}`);
       });
 
-      // L’utilisateur entre dans une conversation avec un autre utilisateur
+      // L’utilisateur entre dans une conversation
       socket.on('user_in_conversation', (data) => {
         console.log('🛬 Reçu user_in_conversation :', data);
         const { userId, otherUserId } = data || {};
-
         if (!userId || !otherUserId) {
           console.warn('⚠️ user_in_conversation reçu avec données incomplètes');
           return;
@@ -52,7 +53,6 @@ module.exports = {
       // Gestion de la déconnexion
       socket.on('disconnect', () => {
         console.log('❌ Déconnexion :', socket.id);
-
         let disconnectedUserId = null;
 
         for (const [userId, socketId] of users.entries()) {
@@ -66,7 +66,7 @@ module.exports = {
 
         if (disconnectedUserId) {
           activeConversations.delete(disconnectedUserId);
-          console.log(`ℹ️ Utilisateur ${disconnectedUserId} supprimé de la map des conversations actives`);
+          console.log(`ℹ️ Utilisateur ${disconnectedUserId} supprimé des conversations actives`);
         }
       });
     });
