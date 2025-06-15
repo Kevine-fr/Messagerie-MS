@@ -49,11 +49,11 @@ exports.createMessage = async (req, res) => {
       });
     }
 
-    await sendToKafka('message.created', {
-      content: message.content,
-      user_id: senderId,
-      receiver_id: receiverId,
-    });
+    // await sendToKafka('message.created', {
+    //   content: message.content,
+    //   user_id: senderId,
+    //   receiver_id: receiverId,
+    // });
 
     res.status(201).json([message]);
   } catch (err) {
