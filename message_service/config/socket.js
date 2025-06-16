@@ -52,6 +52,32 @@ module.exports = {
         console.log(`🟢 Utilisateur ${userId} discute avec ${otherUserId}`);
       });
 
+      // Quand un utilisateur demande si l’autre est dans la conversation
+      socket.on('ask_user_in_conversation', (data) => {
+        const { from, to } = data || {};
+
+        const toSocketId = users.get(to);
+        if (toSocketId) {
+          // Envoie la demande à l’autre utilisateur
+          ioInstance.to(toSocketId).emit('ask_user_in_conversation', {
+            from,
+            to,
+          });
+        }
+      });
+
+      // Quand l’autre répond qu’il est bien dans la conversation
+      socket.on('reply_user_in_conversation', (data) => {
+        const { to, isInConversation } = data || {};
+
+        const toSocketId = users.get(to);
+        if (toSocketId) {
+          ioInstance.to(toSocketId).emit('reply_user_in_conversation', {
+            isInConversation,
+          });
+        }
+      });
+
       // L’utilisateur quitte une conversation
       socket.on('user_left_conversation', ({ userId, otherUserId }) => {
         if (activeConversations.has(userId)) {
