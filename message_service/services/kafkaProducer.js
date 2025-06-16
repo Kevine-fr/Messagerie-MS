@@ -1,4 +1,4 @@
-const { Kafka } = require('kafkajs');
+const { Kafka, Partitioners } = require('kafkajs');
 
 const kafka = new Kafka({
   clientId: 'nodejs-service',
@@ -11,7 +11,9 @@ const kafka = new Kafka({
   }
 });
 
-const producer = kafka.producer();
+const producer = kafka.producer({
+  createPartitioner: Partitioners.LegacyPartitioner, 
+});
 const admin = kafka.admin();
 
 /**
@@ -37,7 +39,6 @@ const createTopicIfNotExists = async (topic) => {
 };
 
 /**
- * Envoie un message à un topic (créé automatiquement si nécessaire).
  * @param {string} topic - Nom du topic
  * @param {Object} payload - Données à envoyer
  */
