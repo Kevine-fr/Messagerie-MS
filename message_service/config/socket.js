@@ -23,10 +23,11 @@ module.exports = {
         console.log(`✅ Utilisateur ${userId} lié au socket ${socket.id}`);
       });
 
-      // L’utilisateur entre dans une conversation
+      // L’utilisateur entre dans une conversation avec un autre utilisateur
       socket.on('user_in_conversation', (data) => {
         console.log('🛬 Reçu user_in_conversation :', data);
         const { userId, otherUserId } = data || {};
+
         if (!userId || !otherUserId) {
           console.warn('⚠️ user_in_conversation reçu avec données incomplètes');
           return;
@@ -34,8 +35,13 @@ module.exports = {
 
         if (!activeConversations.has(userId)) {
           activeConversations.set(userId, new Set());
+          console.log(`L'utilisateur ${userId} est dans une conversation`)
         }
         activeConversations.get(userId).add(otherUserId);
+        socket.emit('user_stay_in_conversation', {
+          userId : userId,
+          otherUserId: otherUserId
+        });
         console.log(`🟢 Utilisateur ${userId} discute avec ${otherUserId}`);
       });
 
@@ -46,6 +52,10 @@ module.exports = {
           if (activeConversations.get(userId).size === 0) {
             activeConversations.delete(userId);
           }
+          socket.emit('user_leave_conversation', {
+            userId : userId,
+            otherUserId: otherUserId
+          });
           console.log(`🔴 Utilisateur ${userId} a quitté la discussion avec ${otherUserId}`);
         }
       });
@@ -53,6 +63,7 @@ module.exports = {
       // Gestion de la déconnexion
       socket.on('disconnect', () => {
         console.log('❌ Déconnexion :', socket.id);
+
         let disconnectedUserId = null;
 
         for (const [userId, socketId] of users.entries()) {
@@ -66,7 +77,7 @@ module.exports = {
 
         if (disconnectedUserId) {
           activeConversations.delete(disconnectedUserId);
-          console.log(`ℹ️ Utilisateur ${disconnectedUserId} supprimé des conversations actives`);
+          console.log(`ℹ️ Utilisateur ${disconnectedUserId} supprimé de la map des conversations actives`);
         }
       });
     });
