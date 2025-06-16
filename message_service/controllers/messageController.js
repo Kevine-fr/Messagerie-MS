@@ -45,6 +45,7 @@ exports.createMessage = async (req, res) => {
           content,
           isRead: message.isRead,
           createdAt: message.createdAt,
+          updatedAt: message.updatedAt
         },
       });
     }
