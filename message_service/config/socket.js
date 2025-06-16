@@ -42,6 +42,13 @@ module.exports = {
           userId : userId,
           otherUserId: otherUserId
         });
+        const otherSocketId = users.get(otherUserId);
+          if (otherSocketId) {
+            ioInstance.to(otherSocketId).emit('user_stay_in_conversation', {
+              userId,
+              otherUserId,
+            });
+          }
         console.log(`🟢 Utilisateur ${userId} discute avec ${otherUserId}`);
       });
 
@@ -56,6 +63,13 @@ module.exports = {
             userId : userId,
             otherUserId: otherUserId
           });
+          const otherSocketId = users.get(otherUserId);
+          if (otherSocketId) {
+            ioInstance.to(otherSocketId).emit('user_leave_conversation', {
+              userId,
+              otherUserId,
+            });
+          }
           console.log(`🔴 Utilisateur ${userId} a quitté la discussion avec ${otherUserId}`);
         }
       });
