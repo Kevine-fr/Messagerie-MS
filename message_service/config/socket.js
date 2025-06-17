@@ -37,6 +37,7 @@ module.exports = {
           otherUserId,
           room: roomName,
         });
+        console.log(`✅ Les utilisateurs ${userId} & ${otherUserId} sont tous les 2 dans la ${roomName}`);
       });
 
       socket.on('user_left_conversation', ({ userId, otherUserId }) => {
