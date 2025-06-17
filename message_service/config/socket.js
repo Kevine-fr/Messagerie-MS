@@ -84,6 +84,8 @@ module.exports = {
   },
 
   getUserSocketId: (userId) => users.get(userId),
+
+  getRoomName,
 };
 
 function getRoomName(userA, userB) {
