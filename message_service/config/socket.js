@@ -19,6 +19,7 @@ module.exports = {
 
       socket.on('register', (userId) => {
         users.set(userId, socket.id);
+        socket.userId = userId;
         console.log(`✅ Utilisateur ${userId} lié au socket ${socket.id}`);
       });
 
