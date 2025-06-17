@@ -9,31 +9,30 @@ exports.createMessage = async (req, res) => {
     const { senderId, receiverId, content } = req.body;
 
     const sender = await User.findOne({ user_id: senderId });
-    if (!sender) {
-      return res.status(404).json({ error: "Expéditeur introuvable." });
-    }
+    if (!sender) return res.status(404).json({ error: "Expéditeur introuvable." });
 
     const receiver = await User.findOne({ user_id: receiverId });
-    if (!receiver) {
-      return res.status(404).json({ error: "Destinataire introuvable." });
-    }
+    if (!receiver) return res.status(404).json({ error: "Destinataire introuvable." });
 
     if (senderId === receiverId) {
       return res.status(409).json({ error: "Vous ne pouvez pas vous envoyer un message à vous-même." });
     }
 
-    const isRecipientInConversation = isUserInConversationWith(receiverId, senderId);
+    const io = getIO();
+    const roomName = getRoomName(senderId, receiverId);
+    const room = io.sockets.adapter.rooms.get(roomName);
+
+    const isRead = room && room.size === 2;
 
     const message = new Message({
       senderId,
       receiverId,
       content,
-      isRead: isRecipientInConversation,
+      isRead,
     });
 
     await message.save();
 
-    const io = getIO();
     const receiverSocketId = getUserSocketId(receiverId);
 
     if (receiverSocketId) {
@@ -50,17 +49,12 @@ exports.createMessage = async (req, res) => {
       });
     }
 
-    // await sendToKafka('message.created', {
-    //   content: message.content,
-    //   user_id: senderId,
-    //   receiver_id: receiverId,
-    // });
-
     res.status(201).json([message]);
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
 };
+
 
 exports.getAllMessages = async (req, res) => {
   try {
