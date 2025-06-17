@@ -1,7 +1,7 @@
 const { Server } = require('socket.io');
 
 let ioInstance;
-const users = new Map(); // Map userId => socket.id
+const users = new Map(); 
 
 module.exports = {
   init: (server) => {
@@ -47,15 +47,19 @@ module.exports = {
 
       socket.on('user_left_conversation', ({ userId, otherUserId }) => {
         if (!userId || !otherUserId) return;
-
+      
         const roomName = getRoomName(userId, otherUserId);
         socket.leave(roomName);
         console.log(`🔴 ${userId} a quitté la room ${roomName}`);
-
-        ioInstance.to(roomName).emit('user_leave_conversation', {
-          userId,
-          otherUserId,
-        });
+      
+        const room = ioInstance.sockets.adapter.rooms.get(roomName);
+      
+        if (room && room.size > 0) {
+          ioInstance.to(roomName).emit('user_leave_conversation', {
+            userId,
+            otherUserId,
+          });
+        }
       });
 
       socket.on('disconnect', () => {
@@ -82,7 +86,6 @@ module.exports = {
   getUserSocketId: (userId) => users.get(userId),
 };
 
-// Fonction utilitaire pour générer un nom de room unique entre 2 utilisateurs
 function getRoomName(userA, userB) {
   const sorted = [userA, userB].sort((a, b) => a - b);
   return `conversation_${sorted[0]}_${sorted[1]}`;
