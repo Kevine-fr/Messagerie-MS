@@ -27,17 +27,22 @@ module.exports = {
           console.warn('⚠️ Données incomplètes pour user_in_conversation');
           return;
         }
-
+      
         const roomName = getRoomName(userId, otherUserId);
         socket.join(roomName);
         console.log(`🟢 ${userId} a rejoint la room ${roomName}`);
-
-        ioInstance.to(roomName).emit('both_users_in_room', {
-          userId,
-          otherUserId,
-          room: roomName,
-        });
-        console.log(`✅ Les utilisateurs ${userId} & ${otherUserId} sont tous les 2 dans la ${roomName}`);
+      
+        const room = ioInstance.sockets.adapter.rooms.get(roomName);
+        if (room && room.size === 2) {
+          ioInstance.to(roomName).emit('both_users_in_room', {
+            userId,
+            otherUserId,
+            room: roomName,
+          });
+          console.log(`✅ Les utilisateurs ${userId} & ${otherUserId} sont tous les 2 dans la ${roomName}`);
+        } else {
+          console.log(`⏳ En attente de l'autre utilisateur pour la room ${roomName}`);
+        }
       });
 
       socket.on('user_left_conversation', ({ userId, otherUserId }) => {
