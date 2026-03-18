@@ -2,7 +2,7 @@ FROM node:18
 
 WORKDIR /usr/src/app
 
-COPY . .  
+COPY apigateway/ .  
 
 RUN npm install
 
