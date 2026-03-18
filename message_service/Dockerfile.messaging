@@ -1,17 +1,11 @@
-FROM node:18
+FROM node:18-alpine
 
-WORKDIR /usr/src/app
+WORKDIR /workspace/message_service
 
-COPY package*.json ./
-
+COPY package.json ./
 RUN npm install
-RUN npm install mongoose
-RUN npm install dotenv
 
-COPY . .  
-
-# Si nécessaire, ajouter cette ligne pour le fichier .env
-COPY .env ./
+COPY . .
 
 EXPOSE 3000
 

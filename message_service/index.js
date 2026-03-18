@@ -24,6 +24,6 @@ app.get('/', (req, res) => {
   res.send('Service Message is running... ✅');
 });
 
-app.listen(port, () => {
+app.listen(port, '0.0.0.0', () => {
   console.log(`🚀 Serveur en écoute sur http://localhost:${port}`);
 });
