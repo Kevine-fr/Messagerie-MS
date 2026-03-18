@@ -1,4 +1,4 @@
-version: "3.8"
+version: "3.9"
 
 services:
   db:
@@ -19,7 +19,7 @@ services:
   app:
     build:
       context: ./user_service
-      dockerfile: Dockerfile.user
+      dockerfile: Dockerfile.prod
     container_name: user_service
     restart: unless-stopped
     ports:
@@ -80,7 +80,7 @@ services:
   nodejs:
     build:
       context: ./message_service
-      dockerfile: Dockerfile.messaging
+      dockerfile: Dockerfile.prod
     container_name: message_service
     restart: unless-stopped
     ports:
@@ -93,10 +93,26 @@ services:
     environment:
       MONGO_URI: mongodb://mongodb:27017/messages_db
 
+  worker:
+    build:
+      context: ./message_service
+      dockerfile: Dockerfile.consumer
+    container_name: message_service
+    restart: unless-stopped
+    ports:
+      - "3000:3001"
+    depends_on:
+      - kafka
+      - mongodb
+    networks:
+      - web
+    environment:
+      MONGO_URI: mongodb://mongodb:27017/messages_db
+
   apigateway:
     build:
       context: ./apigateway
-      dockerfile: Dockerfile.apigateway
+      dockerfile: Dockerfile.prod
     container_name: api_gateway
     restart: unless-stopped
     ports:
