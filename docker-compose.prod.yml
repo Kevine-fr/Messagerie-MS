@@ -97,7 +97,7 @@ services:
     build:
       context: ./message_service
       dockerfile: Dockerfile.consumer
-    container_name: message_service
+    container_name: consumer_service
     restart: unless-stopped
     ports:
       - "3000:3001"
