@@ -16,7 +16,7 @@ services:
     networks:
       - web
 
-  app:
+  user:
     build:
       context: ./user_service
       dockerfile: Dockerfile.prod
@@ -59,7 +59,7 @@ services:
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
       KAFKA_BROKER_ID: 1
       KAFKA_LISTENERS: PLAINTEXT://:9092
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka_messagerie:9092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
     depends_on:
       - zookeeper
@@ -77,7 +77,7 @@ services:
     networks:
       - web
 
-  nodejs:
+  message:
     build:
       context: ./message_service
       dockerfile: Dockerfile.prod
@@ -118,8 +118,8 @@ services:
     networks:
       - web
     depends_on:
-      - app
-      - nodejs
+      - user
+      - message
     environment:
       USER_SERVICE_URL: http://user_service:8000
       MESSAGE_SERVICE_URL: http://message_service:3000
