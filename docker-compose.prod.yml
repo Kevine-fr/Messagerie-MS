@@ -99,8 +99,6 @@ services:
       dockerfile: Dockerfile.consumer
     container_name: consumer_service
     restart: unless-stopped
-    ports:
-      - "3000:3001"
     depends_on:
       - kafka
       - mongodb
