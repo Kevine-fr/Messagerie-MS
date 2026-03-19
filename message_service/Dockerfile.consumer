@@ -1,10 +1,11 @@
-FROM node:18
+FROM node:18-alpine
 
-WORKDIR /usr/src/app
+WORKDIR /workspace/message_service
 
-COPY message_service/ .  
-
+COPY package.json ./
 RUN npm install
+
+COPY . .
 
 EXPOSE 3000
 
