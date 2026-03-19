@@ -11,23 +11,39 @@ class KafkaProducerService
 {
     protected KafkaProducerInterface $producer;
 
+    // En production 
+
+    // public function __construct()
+    // {
+    //     $brokerList = config('kafka.brokers');
+    //     $username = config('kafka.username');
+    //     $password = config('kafka.password');
+
+    //     $this->producer = KafkaProducerBuilder::create()
+    //         ->withAdditionalBroker($brokerList)
+    //         ->withAdditionalConfig([
+    //             'security.protocol' => 'SASL_SSL',
+    //             'sasl.mechanisms' => 'PLAIN',
+    //             'sasl.username' => $username,
+    //             'sasl.password' => $password,
+    //             'ssl.endpoint.identification.algorithm' => 'https',
+    //         ])
+    //         ->build();
+
+    // }
+
+    // En developpement 
+
     public function __construct()
     {
-        $brokerList = config('kafka.brokers');
-        $username = config('kafka.username');
-        $password = config('kafka.password');
+        $brokerList = config('kafka.brokers' , 'kafka_messagerie:9092');
 
         $this->producer = KafkaProducerBuilder::create()
             ->withAdditionalBroker($brokerList)
             ->withAdditionalConfig([
-                'security.protocol' => 'SASL_SSL',
-                'sasl.mechanisms' => 'PLAIN',
-                'sasl.username' => $username,
-                'sasl.password' => $password,
-                'ssl.endpoint.identification.algorithm' => 'https',
+                'metadata.broker.list' => $brokerList,
             ])
             ->build();
-
     }
 
     public function send(string $topic, array $payload): void

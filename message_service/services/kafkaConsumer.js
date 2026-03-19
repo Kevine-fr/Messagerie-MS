@@ -4,22 +4,22 @@ const { connectDB } = require('../config/db');
 const kafkaHandlers = require('../controllers/kafkaHandlerController');
 
 // Dans l'environnement de Développement, on a besoin de fournir que ces informations //
-// const kafka = new Kafka({
-//   clientId: 'nodejs-service',
-//   brokers: [process.env.KAFKA_URL ?? 'kafka_messagerie:9092'],
-// });
-
-// Dans l'environnement de Production, on a besoin de fournir que ces informations //
 const kafka = new Kafka({
   clientId: 'nodejs-service',
   brokers: [process.env.KAFKA_URL ?? 'kafka_messagerie:9092'],
-  ssl: true,
-  sasl: {
-    mechanism: "plain",
-    username: process.env.API_KEY,
-    password: process.env.API_SECRET
-  }
 });
+
+// Dans l'environnement de Production, on a besoin de fournir que ces informations //
+// const kafka = new Kafka({
+//   clientId: 'nodejs-service',
+//   brokers: [process.env.KAFKA_URL ?? 'kafka_messagerie:9092'],
+//   ssl: true,
+//   sasl: {
+//     mechanism: "plain",
+//     username: process.env.API_KEY,
+//     password: process.env.API_SECRET
+//   }
+// });
 
 const consumer = kafka.consumer({ groupId: 'nodejs-consumer-group' });
 
