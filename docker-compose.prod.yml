@@ -124,6 +124,7 @@ services:
       USER_SERVICE_URL: http://user_service:8000
       MESSAGE_SERVICE_URL: http://message_service:3000
       JWT_SECRET: BQbrDxP4WWoMDUeTaTDeEs8wSsizAulUkAEuhCkua13s5wsP0MzN6kBovKz1djtQ
+      CORS_ORIGIN: "https://messagerie-9fe8b.web.app"
 
 volumes:
   db_data:
