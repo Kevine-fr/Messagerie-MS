@@ -31,13 +31,13 @@ const topicHandlers = {
 
 const run = async () => {
   // Connexion à la base de données MongoDB
-// await connectDB()
-//     .then(() => {
-//       console.log('🟢 Connecté à MongoDB');
-//     })
-//     .catch((err) => {
-//       console.error('❌ Erreur de connexion à MongoDB:', err);
-//     });
+await connectDB()
+    .then(() => {
+      console.log('🟢 Connecté à MongoDB');
+    })
+    .catch((err) => {
+      console.error('❌ Erreur de connexion à MongoDB:', err);
+    });
 
   await consumer.connect();
 

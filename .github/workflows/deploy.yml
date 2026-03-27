@@ -1,0 +1,63 @@
+name: 🚀 Deploy to VPS
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy → OVH VPS
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host:        ${{ secrets.VPS_HOST }}
+          username:    ${{ secrets.VPS_USER }}
+          key:         ${{ secrets.VPS_SSH_KEY }}
+          script_stop: true
+          # envs:        ENV_FILE
+          script: |
+            echo "──────────────────────────────────────────"
+            echo "  📦  Pull du code"
+            echo "──────────────────────────────────────────"
+            cd ~/deploy/Messagerie-MS
+            git pull origin main
+
+            echo "──────────────────────────────────────────"
+            echo "  🐳  Build & restart des containers"
+            echo "──────────────────────────────────────────"
+            docker compose -f docker-compose.prod.yml up -d --build
+
+            echo "──────────────────────────────────────────"
+            echo "  ⏳  Attente démarrage app (15s)"
+            echo "──────────────────────────────────────────"
+            sleep 15
+
+            echo "──────────────────────────────────────────"
+            echo "  🗄️   Migrations"
+            echo "──────────────────────────────────────────"
+            docker exec stretcher_server php artisan migrate --force
+
+            echo "──────────────────────────────────────────"
+            echo "  🧹  Nettoyage images Docker obsolètes"
+            echo "──────────────────────────────────────────"
+            docker image prune -f
+
+            echo ""
+            echo "✅  Déploiement terminé avec succès !"
+        # env:
+        #   ENV_FILE: ${{ secrets.ENV_FILE }}
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "❌ Le déploiement a échoué — vérifiez les logs ci-dessus."

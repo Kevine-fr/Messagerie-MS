@@ -4,10 +4,17 @@ const jwt = require('jsonwebtoken');
 
 const app = express();
 const PORT = 8080;
+const cors = require('cors'); 
 
 const userService = process.env.USER_SERVICE_URL || 'http://user_service:8000';
 const messageService = process.env.MESSAGE_SERVICE_URL || 'http://message_service:3000';
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret';
+
+app.use(cors({
+  origin: process.env.CORS_ORIGIN, 
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  credentials: true, 
+}));
 
 // Middleware JWT
 function authenticateToken(req, res, next) {

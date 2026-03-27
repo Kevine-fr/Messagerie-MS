@@ -1,18 +1,11 @@
 const express = require('express');
 const http = require('http');
-const cors = require('cors'); 
 require('dotenv').config();
 const { connectDB } = require('./config/db');
 const socket = require('./config/socket');
 
 const app = express();
 const port = process.env.PORT ?? 3000;
-
-app.use(cors({
-  origin: process.env.CORS_ORIGIN, 
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  credentials: true, 
-}));
 
 app.use(express.json());
 
