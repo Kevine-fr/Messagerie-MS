@@ -47,7 +47,7 @@ jobs:
             echo "──────────────────────────────────────────"
             echo "  🗄️   Migrations"
             echo "──────────────────────────────────────────"
-            docker exec stretcher_server php artisan migrate --force
+            docker exec user_service php artisan migrate --force
 
             echo "──────────────────────────────────────────"
             echo "  🧹  Nettoyage images Docker obsolètes"
