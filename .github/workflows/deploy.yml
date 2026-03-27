@@ -30,7 +30,9 @@ jobs:
             echo "  📦  Pull du code"
             echo "──────────────────────────────────────────"
             cd ~/deploy/Messagerie-MS
-            git pull origin main
+
+            git fetch origin main
+            git reset --hard origin/main
 
             echo "──────────────────────────────────────────"
             echo "  🐳  Build & restart des containers"
