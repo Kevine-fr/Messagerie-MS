@@ -96,6 +96,7 @@ services:
       - web
     environment:
       MONGO_URI: mongodb://mongodb:27017/messages_db
+      CORS_ORIGIN: "https://messagerie-9fe8b.web.app" 
 
   worker:
     build:
@@ -110,6 +111,7 @@ services:
       - web
     environment:
       MONGO_URI: mongodb://mongodb:27017/messages_db
+      CORS_ORIGIN: "https://messagerie-9fe8b.web.app" 
 
   apigateway:
     build:
