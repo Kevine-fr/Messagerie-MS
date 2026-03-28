@@ -11,7 +11,6 @@ const messageService = process.env.MESSAGE_SERVICE_URL || 'http://message_servic
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret';
 const CORS_ORIGIN = process.env.CORS_ORIGIN || '*';
 
-// ✅ CORS en tout premier, avant tout autre middleware
 app.use(cors({
   origin: CORS_ORIGIN,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -19,10 +18,8 @@ app.use(cors({
   credentials: true,
 }));
 
-// ✅ Répondre immédiatement aux preflight OPTIONS
 app.options('*', cors());
 
-// Middleware JWT
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
   const token = authHeader?.split(' ')[1];
@@ -35,7 +32,6 @@ function authenticateToken(req, res, next) {
   });
 }
 
-// Fonction de création de proxy
 function createServiceProxy(target, pathPrefix) {
   return createProxyMiddleware({
     target,
@@ -58,10 +54,36 @@ function createServiceProxy(target, pathPrefix) {
 app.use('/service/user/public', createServiceProxy(userService, '/service/user/public'));
 app.use('/service/user/private', authenticateToken, createServiceProxy(userService, '/service/user/private'));
 
-// MESSAGE SERVICE
-app.use('/service/message', authenticateToken, createServiceProxy(messageService, '/service/message'));
+// MESSAGE SERVICE — avec support WebSocket
+const messageProxy = createProxyMiddleware({
+  target: messageService,
+  changeOrigin: true,
+  ws: true,  // ✅ WebSocket
+  pathRewrite: { '^/service/message': '' },
+  onProxyRes(proxyRes) {
+    proxyRes.headers['Access-Control-Allow-Origin'] = CORS_ORIGIN;
+    proxyRes.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS';
+    proxyRes.headers['Access-Control-Allow-Headers'] = 'Authorization, Content-Type';
+    proxyRes.headers['Access-Control-Allow-Credentials'] = 'true';
+  },
+  onError(err, req, res) {
+    console.error(`Erreur proxy vers ${messageService}:`, err.message);
+    res.status(502).json({ message: 'Service indisponible' });
+  },
+});
 
-// Route de test
+app.use('/service/message', authenticateToken, messageProxy);
+
+// ✅ Upgrade WebSocket
+app.on('upgrade', (req, socket, head) => {
+  messageProxy.upgrade(req, socket, head);
+});
+
 app.get('/', (req, res) => res.send('API Gateway opérationnelle ✅'));
 
-app.listen(PORT, () => console.log(`API Gateway running at http://localhost:${PORT}`));
+const server = app.listen(PORT, () => console.log(`API Gateway running at http://localhost:${PORT}`));
+
+// ✅ Attacher le serveur HTTP pour les upgrades WS
+server.on('upgrade', (req, socket, head) => {
+  messageProxy.upgrade(req, socket, head);
+});
