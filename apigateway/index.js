@@ -41,6 +41,12 @@ function createServiceProxy(target, pathPrefix) {
     target,
     changeOrigin: true,
     pathRewrite: { [`^${pathPrefix}`]: '' },
+    onProxyRes(proxyRes) {
+      proxyRes.headers['Access-Control-Allow-Origin'] = CORS_ORIGIN;
+      proxyRes.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS';
+      proxyRes.headers['Access-Control-Allow-Headers'] = 'Authorization, Content-Type';
+      proxyRes.headers['Access-Control-Allow-Credentials'] = 'true';
+    },
     onError(err, req, res) {
       console.error(`Erreur proxy vers ${target}:`, err.message);
       res.status(502).json({ message: 'Service indisponible' });

@@ -10,5 +10,5 @@ php artisan event:cache
 # Migration des tables a la BD
 php artisan migrate --force
 
-# Démarrer Nginx & PHP-FPM
-php-fpm
+# Démarrer le serveur HTTP sur le port 8000
+php artisan serve --host=0.0.0.0 --port=8000
