@@ -10,12 +10,12 @@ services:
     ports:
       - "3306:3306"
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-password}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-password}
       MYSQL_DATABASE: ${DB_DATABASE:-messagerie}
     volumes:
       - db_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${DB_ROOT_PASSWORD:-password}"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${DB_PASSWORD:-password}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -34,7 +34,7 @@ services:
     environment:
       PMA_HOST: db
       PMA_USER: root
-      PMA_PASSWORD: ${DB_ROOT_PASSWORD:-password}
+      PMA_PASSWORD: ${DB_PASSWORD:-password}
     networks:
       - web
 
@@ -133,7 +133,7 @@ services:
       DB_PORT: 3306
       DB_DATABASE: ${DB_DATABASE:-messagerie}
       DB_USERNAME: root
-      DB_PASSWORD: ${DB_ROOT_PASSWORD:-password}
+      DB_PASSWORD: ${DB_PASSWORD:-password}
       KAFKA_BROKERS: kafka:9092
       KAFKA_GROUP_ID: user-service-group
     volumes:
