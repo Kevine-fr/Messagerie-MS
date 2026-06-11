@@ -90,7 +90,7 @@ services:
 
   user:
     image: ${DOCKERHUB_USERNAME}/messagerie-user:${IMAGE_TAG:-latest}
-    container_name: messagerie-user
+    container_name: messagerie-service-user
     restart: unless-stopped
     depends_on:
       db:
@@ -126,7 +126,7 @@ services:
 
   message:
     image: ${DOCKERHUB_USERNAME}/messagerie-message:${IMAGE_TAG:-latest}
-    container_name: messagerie-message
+    container_name: messagerie-service-message
     restart: unless-stopped
     depends_on:
       mongodb:
