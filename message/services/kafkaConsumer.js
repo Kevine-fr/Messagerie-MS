@@ -3,23 +3,28 @@ const { Kafka } = require('kafkajs');
 const { connectDB } = require('../config/db');
 const kafkaHandlers = require('../controllers/kafkaHandlerController');
 
-// Dans l'environnement de Développement, on a besoin de fournir que ces informations //
-const kafka = new Kafka({
-  clientId: 'nodejs-service',
-  brokers: [process.env.KAFKA_URL ?? 'kafka_messagerie:9092'],
-});
+// Configuration Kafka : PLAINTEXT par defaut (Kafka auto-heberge),
+// SSL/SASL active automatiquement si KAFKA_API_KEY est fourni (Confluent Cloud, etc.).
+const brokers = (process.env.KAFKA_URL ?? 'kafka:9092')
+  .split(',')
+  .map((broker) => broker.trim())
+  .filter(Boolean);
 
-// Dans l'environnement de Production, on a besoin de fournir que ces informations //
-// const kafka = new Kafka({
-//   clientId: 'nodejs-service',
-//   brokers: [process.env.KAFKA_URL ?? 'kafka_messagerie:9092'],
-//   ssl: true,
-//   sasl: {
-//     mechanism: "plain",
-//     username: process.env.API_KEY,
-//     password: process.env.API_SECRET
-//   }
-// });
+const kafkaConfig = {
+  clientId: 'nodejs-service',
+  brokers,
+};
+
+if (process.env.KAFKA_API_KEY) {
+  kafkaConfig.ssl = true;
+  kafkaConfig.sasl = {
+    mechanism: 'plain',
+    username: process.env.KAFKA_API_KEY,
+    password: process.env.KAFKA_API_SECRET,
+  };
+}
+
+const kafka = new Kafka(kafkaConfig);
 
 const consumer = kafka.consumer({ groupId: 'nodejs-consumer-group' });
 

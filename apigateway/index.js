@@ -4,25 +4,43 @@ const jwt = require('jsonwebtoken');
 const cors = require('cors');
 
 const app = express();
-const PORT = 8080;
+const PORT = process.env.PORT || 8080;
 
-const userService = process.env.USER_SERVICE_URL || 'http://user_service:8000';
-const messageService = process.env.MESSAGE_SERVICE_URL || 'http://message_service:3000';
+const userService = process.env.USER_SERVICE_URL || 'http://user:8000';
+const messageService = process.env.MESSAGE_SERVICE_URL || 'http://message:3000';
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret';
-const CORS_ORIGIN = process.env.CORS_ORIGIN || '*';
 
-app.use(cors({
-  origin: CORS_ORIGIN,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+// Liste blanche d'origines, separees par des virgules.
+// Ex: "https://messagerie-9fe8b.web.app,http://localhost:5173"
+const allowedOrigins = (process.env.CORS_ORIGIN || '*')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+const allowAllOrigins = allowedOrigins.includes('*');
+
+// CORS gere UNIQUEMENT ici (couche unique pour tout le systeme).
+const corsOptions = {
+  origin(origin, callback) {
+    // Requetes sans origine (curl, serveur-a-serveur, health checks) -> autorisees.
+    if (!origin || allowAllOrigins || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error(`Origine non autorisee par CORS : ${origin}`));
+  },
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Authorization', 'Content-Type'],
-  credentials: true,
-}));
+  // credentials est incompatible avec l'origine '*'.
+  credentials: !allowAllOrigins,
+};
 
-app.options('*', cors());
+// Le middleware cors() gere aussi automatiquement le preflight OPTIONS.
+app.use(cors(corsOptions));
 
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
-  const token = authHeader?.split(' ')[1];
+  // Token via header Authorization OU query ?token= (handshake WebSocket cote navigateur).
+  const token = authHeader?.split(' ')[1] || req.query.token;
   if (!token) return res.status(401).json({ message: 'Token manquant' });
 
   jwt.verify(token, JWT_SECRET, (err, user) => {
@@ -32,21 +50,30 @@ function authenticateToken(req, res, next) {
   });
 }
 
-function createServiceProxy(target, pathPrefix) {
+// Supprime tout en-tete CORS provenant des services en aval pour eviter les doublons
+// (sinon le navigateur rejette : "Access-Control-Allow-Origin contains multiple values").
+function stripUpstreamCors(proxyRes) {
+  delete proxyRes.headers['access-control-allow-origin'];
+  delete proxyRes.headers['access-control-allow-methods'];
+  delete proxyRes.headers['access-control-allow-headers'];
+  delete proxyRes.headers['access-control-allow-credentials'];
+  delete proxyRes.headers['access-control-expose-headers'];
+  delete proxyRes.headers['access-control-max-age'];
+}
+
+function createServiceProxy(target, pathPrefix, extraOptions = {}) {
   return createProxyMiddleware({
     target,
     changeOrigin: true,
     pathRewrite: { [`^${pathPrefix}`]: '' },
-    onProxyRes(proxyRes) {
-      proxyRes.headers['Access-Control-Allow-Origin'] = CORS_ORIGIN;
-      proxyRes.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS';
-      proxyRes.headers['Access-Control-Allow-Headers'] = 'Authorization, Content-Type';
-      proxyRes.headers['Access-Control-Allow-Credentials'] = 'true';
-    },
+    onProxyRes: stripUpstreamCors,
     onError(err, req, res) {
-      console.error(`Erreur proxy vers ${target}:`, err.message);
-      res.status(502).json({ message: 'Service indisponible' });
+      console.error(`Erreur proxy vers ${target} :`, err.message);
+      if (res && !res.headersSent && typeof res.status === 'function') {
+        res.status(502).json({ message: 'Service indisponible' });
+      }
     },
+    ...extraOptions,
   });
 }
 
@@ -54,36 +81,15 @@ function createServiceProxy(target, pathPrefix) {
 app.use('/service/user/public', createServiceProxy(userService, '/service/user/public'));
 app.use('/service/user/private', authenticateToken, createServiceProxy(userService, '/service/user/private'));
 
-// MESSAGE SERVICE — avec support WebSocket
-const messageProxy = createProxyMiddleware({
-  target: messageService,
-  changeOrigin: true,
-  ws: true,  // ✅ WebSocket
-  pathRewrite: { '^/service/message': '' },
-  onProxyRes(proxyRes) {
-    proxyRes.headers['Access-Control-Allow-Origin'] = CORS_ORIGIN;
-    proxyRes.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS';
-    proxyRes.headers['Access-Control-Allow-Headers'] = 'Authorization, Content-Type';
-    proxyRes.headers['Access-Control-Allow-Credentials'] = 'true';
-  },
-  onError(err, req, res) {
-    console.error(`Erreur proxy vers ${messageService}:`, err.message);
-    res.status(502).json({ message: 'Service indisponible' });
-  },
-});
-
+// MESSAGE SERVICE (REST + WebSocket / Socket.IO)
+const messageProxy = createServiceProxy(messageService, '/service/message', { ws: true });
 app.use('/service/message', authenticateToken, messageProxy);
 
-// ✅ Upgrade WebSocket
-app.on('upgrade', (req, socket, head) => {
-  messageProxy.upgrade(req, socket, head);
-});
+app.get('/', (req, res) => res.send('API Gateway operationnelle ✅'));
 
-app.get('/', (req, res) => res.send('API Gateway opérationnelle ✅'));
+const server = app.listen(PORT, () => console.log(`API Gateway en ligne sur http://0.0.0.0:${PORT}`));
 
-const server = app.listen(PORT, () => console.log(`API Gateway running at http://localhost:${PORT}`));
-
-// ✅ Attacher le serveur HTTP pour les upgrades WS
+// Upgrade WebSocket -> proxifie vers le service message.
 server.on('upgrade', (req, socket, head) => {
   messageProxy.upgrade(req, socket, head);
 });

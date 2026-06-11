@@ -1,7 +1,6 @@
 const User = require('../models/User');
-const socket = require('../config/socket'); 
+const socket = require('../config/socket');
 const Message = require('../models/Message');
-const { sendToKafka } = require('../services/kafkaProducer');
 const { getIO, getUserSocketId, getRoomName } = require('../config/socket');
 
 exports.createMessage = async (req, res) => {

@@ -11,38 +11,31 @@ class KafkaProducerService
 {
     protected KafkaProducerInterface $producer;
 
-    // En production 
-
-    // public function __construct()
-    // {
-    //     $brokerList = config('kafka.brokers');
-    //     $username = config('kafka.username');
-    //     $password = config('kafka.password');
-
-    //     $this->producer = KafkaProducerBuilder::create()
-    //         ->withAdditionalBroker($brokerList)
-    //         ->withAdditionalConfig([
-    //             'security.protocol' => 'SASL_SSL',
-    //             'sasl.mechanisms' => 'PLAIN',
-    //             'sasl.username' => $username,
-    //             'sasl.password' => $password,
-    //             'ssl.endpoint.identification.algorithm' => 'https',
-    //         ])
-    //         ->build();
-
-    // }
-
-    // En developpement 
-
+    /**
+     * PLAINTEXT par defaut (Kafka auto-heberge). Si un username/password Kafka
+     * est configure (Confluent Cloud, etc.), on bascule automatiquement en SASL_SSL.
+     */
     public function __construct()
     {
-        $brokerList = config('kafka.brokers' , 'kafka_messagerie:9092');
+        $brokerList = config('kafka.brokers', 'kafka:9092');
+        $username = config('kafka.username');
+        $password = config('kafka.password');
+
+        $config = ['metadata.broker.list' => $brokerList];
+
+        if (!empty($username) && !empty($password)) {
+            $config = array_merge($config, [
+                'security.protocol' => 'SASL_SSL',
+                'sasl.mechanisms' => 'PLAIN',
+                'sasl.username' => $username,
+                'sasl.password' => $password,
+                'ssl.endpoint.identification.algorithm' => 'https',
+            ]);
+        }
 
         $this->producer = KafkaProducerBuilder::create()
             ->withAdditionalBroker($brokerList)
-            ->withAdditionalConfig([
-                'metadata.broker.list' => $brokerList,
-            ])
+            ->withAdditionalConfig($config)
             ->build();
     }
 

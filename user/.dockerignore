@@ -1,0 +1,12 @@
+/vendor
+/node_modules
+/.git
+/.gitignore
+/.env
+/.env.*
+/.dockerignore
+Dockerfile*
+/tests
+/storage/logs/*.log
+npm-debug.log
+yarn-error.log

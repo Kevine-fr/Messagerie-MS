@@ -1,0 +1,18 @@
+# Variables d'environnement (NE JAMAIS committer)
+.env
+.env.deploy
+.env.*.local
+
+# Dependances
+node_modules/
+vendor/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+*.swp

@@ -67,13 +67,11 @@ class AuthController extends Controller
                 'user' => $user,
                 'token' => $token
             ], 201);
-        } catch (\Exception $e) {
-            Log::error("Error: " . $th->getMessage());
+        } catch (\Throwable $e) {
+            Log::error("Error: " . $e->getMessage());
             return response()->json([
                 "message" => "Erreur lors de la création de l'utilisateur !",
-                "errors" => $e->getMessage(),
-                "line" => $e->getLine(),
-                "file" => $e->getFile()
+                "errors" => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }
     }
@@ -188,12 +186,10 @@ class AuthController extends Controller
                 "errors" => $e->errors()
             ], 422);
         } catch (\Throwable $th) {
+            Log::error("Upload error: " . $th->getMessage());
             return response()->json([
                 "message" => "Erreur lors de l'upload !",
-                "error_type" => get_class($th),
-                "line" => $th->getLine(),
-                "file" => $th->getFile(),
-                "errors" => $th->getMessage()
+                "errors" => config('app.debug') ? $th->getMessage() : null,
             ], 500);
         }
     }
@@ -251,11 +247,10 @@ class AuthController extends Controller
         } catch (\Tymon\JWTAuth\Exceptions\TokenExpiredException $e) {
             return response()->json(['message' => 'Token expiré.'], 401);
         } catch (\Throwable $th) {
+            Log::error("Update error: " . $th->getMessage());
             return response()->json([
                 "message" => "Erreur lors de la mise à jour de votre compte !",
-                "errors" => $th->getMessage(),
-                "line" => $th->getLine(),
-                "file" => $th->getFile()
+                "errors" => config('app.debug') ? $th->getMessage() : null,
             ], 500);
         }
     }
@@ -276,11 +271,10 @@ class AuthController extends Controller
         } catch (\Tymon\JWTAuth\Exceptions\TokenExpiredException $e) {
             return response()->json(['message' => 'Token expiré.'], 401);
         } catch (\Throwable $th) {
+            Log::error("Delete error: " . $th->getMessage());
             return response()->json([
                 "message" => "Erreur lors de la suppression de votre compte !",
-                "errors" => $th->getMessage(),
-                "line" => $th->getLine(),
-                "file" => $th->getFile()
+                "errors" => config('app.debug') ? $th->getMessage() : null,
             ], 500);
         }
     }

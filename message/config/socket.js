@@ -1,15 +1,23 @@
 const { Server } = require('socket.io');
 
 let ioInstance;
-const users = new Map(); 
+const users = new Map();
+
+// Origines autorisees (separees par des virgules). La gateway reste la couche CORS
+// principale ; cette configuration est defensive pour les acces directs.
+const allowedOrigins = (process.env.CORS_ORIGIN || '*')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+const allowAllOrigins = allowedOrigins.includes('*');
 
 module.exports = {
   init: (server) => {
     ioInstance = new Server(server, {
       cors: {
-        origin: process.env.CORS_ORIGIN,
-        methods: ['GET', 'POST', 'PUT', 'DELETE'],
-        credentials: true,
+        origin: allowAllOrigins ? '*' : allowedOrigins,
+        methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+        credentials: !allowAllOrigins,
       },
     });
 

@@ -3,7 +3,7 @@ const userController = require('./userController');
 
 const axios = require('axios');
 
-const message_serviceUrl = process.env.MESSAGE_SERVICE_URL ?? 'http://message_service:3000';
+const message_serviceUrl = process.env.MESSAGE_SERVICE_URL ?? 'http://message:3000';
 
 exports.handleUserDeleted = async (data) => {
   const senderId = data.user_id;

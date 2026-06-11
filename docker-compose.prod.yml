@@ -1,136 +1,189 @@
-version: "3.9"
+# Environnement de PRODUCTION (images pre-construites tirees de DockerHub).
+# Les variables proviennent du fichier .env genere par la CI/CD sur le VPS.
+# Reseau "web" externe : partage avec le reverse proxy nginx (termine le TLS).
 
 services:
   db:
     image: mysql:5.7
-    container_name: mysql_messagerie
+    container_name: messagerie-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?DB_ROOT_PASSWORD manquant}
+      MYSQL_DATABASE: ${DB_DATABASE:-messagerie}
     volumes:
       - db_data:/var/lib/mysql
-    restart: unless-stopped
-    ports:
-      - "3306:3306"
-    environment:
-      MYSQL_ROOT_PASSWORD: password
-      MYSQL_DATABASE: messagerie
-      MYSQL_PASSWORD: password
-    networks:
-      - web
-
-  user:
-    build:
-      context: ./user_service
-      dockerfile: Dockerfile.prod
-    container_name: user_service
-    restart: unless-stopped
-    ports:
-      - "8000:8000"
-    depends_on:
-      - db
-      - kafka
-    environment:
-      DB_CONNECTION: mysql
-      DB_HOST: db
-      DB_PORT: 3306
-      DB_DATABASE: messagerie
-      DB_USERNAME: root
-      DB_PASSWORD: password
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${DB_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - web
 
   zookeeper:
-    image: zookeeper:3.8.6
-    container_name: zookeeper_messagerie
+    image: confluentinc/cp-zookeeper:7.6.1
+    container_name: messagerie-zookeeper
     restart: unless-stopped
-    ports:
-      - "2181:2181"
     environment:
-      ALLOW_ANONYMOUS_LOGIN: "yes"
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
     networks:
       - web
 
   kafka:
-    image: confluentinc/cp-kafka:7.4.0
-    container_name: kafka_messagerie
+    image: confluentinc/cp-kafka:7.6.1
+    container_name: messagerie-kafka
     restart: unless-stopped
-    ports:
-      - "9092:9092"
+    depends_on:
+      - zookeeper
     environment:
-      KAFKA_ENABLE_KRAFT: "no"
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
       KAFKA_BROKER_ID: 1
-      KAFKA_LISTENERS: PLAINTEXT://:9092
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka_messagerie:9092
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-      KAFKA_DEFAULT_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 10s
+      retries: 15
+    networks:
+      - web
+
+  # Cree les topics au demarrage, puis s'arrete (les services attendent sa reussite).
+  kafka-init:
+    image: confluentinc/cp-kafka:7.6.1
+    container_name: messagerie-kafka-init
     depends_on:
-      - zookeeper
+      kafka:
+        condition: service_healthy
+    entrypoint: ["/bin/bash", "-c"]
+    command: |
+      "
+      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic user.created --partitions 1 --replication-factor 1
+      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic user.updated --partitions 1 --replication-factor 1
+      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic user.deleted --partitions 1 --replication-factor 1
+      kafka-topics --bootstrap-server kafka:9092 --list
+      "
+    restart: "no"
     networks:
       - web
 
   mongodb:
-    image: mongo:6
-    container_name: mongodb_messagerie
+    image: mongo:6.0
+    container_name: messagerie-mongodb
     restart: unless-stopped
-    ports:
-      - "27017:27017"
     volumes:
       - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - web
+
+  user:
+    image: ${DOCKERHUB_USERNAME}/messagerie-user:${IMAGE_TAG:-latest}
+    container_name: messagerie-user
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
+      APP_KEY: ${APP_KEY}
+      APP_URL: https://${APP_DOMAIN}
+      DB_CONNECTION: mysql
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_DATABASE: ${DB_DATABASE:-messagerie}
+      DB_USERNAME: root
+      DB_PASSWORD: ${DB_ROOT_PASSWORD}
+      KAFKA_BROKERS: kafka:9092
+      KAFKA_GROUP_ID: user-service-group
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET manquant}
+      CLOUDINARY_URL: ${CLOUDINARY_URL}
+      MAIL_MAILER: ${MAIL_MAILER:-smtp}
+      MAIL_HOST: ${MAIL_HOST}
+      MAIL_PORT: ${MAIL_PORT}
+      MAIL_USERNAME: ${MAIL_USERNAME}
+      MAIL_PASSWORD: ${MAIL_PASSWORD}
+      MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS}
+      MAIL_FROM_NAME: ${MAIL_FROM_NAME:-Messagerie}
     networks:
       - web
 
   message:
-    build:
-      context: ./message_service
-      dockerfile: Dockerfile.prod
-    container_name: message_service
+    image: ${DOCKERHUB_USERNAME}/messagerie-message:${IMAGE_TAG:-latest}
+    container_name: messagerie-message
     restart: unless-stopped
-    ports:
-      - "3000:3000"
     depends_on:
-      - kafka
-      - mongodb
+      mongodb:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+    environment:
+      PORT: 3000
+      MONGO_URI: mongodb://mongodb:27017/messages_db
+      KAFKA_URL: kafka:9092
+      CORS_ORIGIN: ${CORS_ORIGIN:?CORS_ORIGIN manquant}
     networks:
       - web
-    environment:
-      MONGO_URI: mongodb://mongodb:27017/messages_db
-      CORS_ORIGIN: "https://messagerie-9fe8b.web.app" 
 
+  # Meme image que "message", mais lance le consommateur Kafka.
   worker:
-    build:
-      context: ./message_service
-      dockerfile: Dockerfile.consumer
-    container_name: consumer_service
+    image: ${DOCKERHUB_USERNAME}/messagerie-message:${IMAGE_TAG:-latest}
+    container_name: messagerie-consumer
     restart: unless-stopped
     depends_on:
-      - kafka
-      - mongodb
-    networks:
-      - web
+      mongodb:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
     environment:
       MONGO_URI: mongodb://mongodb:27017/messages_db
-      CORS_ORIGIN: "https://messagerie-9fe8b.web.app" 
+      KAFKA_URL: kafka:9092
+      # Le consumer appelle le service message en HTTP pour synchroniser
+      # la collection User (events user.created/updated/deleted).
+      MESSAGE_SERVICE_URL: http://message:3000
+    command: node services/kafkaConsumer.js
+    networks:
+      - web
 
   apigateway:
-    build:
-      context: ./apigateway
-      dockerfile: Dockerfile.prod
-    container_name: api_gateway
+    image: ${DOCKERHUB_USERNAME}/messagerie-apigateway:${IMAGE_TAG:-latest}
+    container_name: messagerie-service-apigateway
     restart: unless-stopped
+    # Expose uniquement sur la loopback de l'hote ; le reverse proxy nginx
+    # (sur le reseau "web") joint apigateway via le DNS interne apigateway:8080.
     ports:
-      - "8080:8080"
-    networks:
-      - web
+      - "127.0.0.1:8080:8080"
     depends_on:
       - user
       - message
     environment:
-      USER_SERVICE_URL: http://user_service:8000
-      MESSAGE_SERVICE_URL: http://message_service:3000
-      JWT_SECRET: BQbrDxP4WWoMDUeTaTDeEs8wSsizAulUkAEuhCkua13s5wsP0MzN6kBovKz1djtQ
-      CORS_ORIGIN: "https://messagerie-9fe8b.web.app"
+      PORT: 8080
+      USER_SERVICE_URL: http://user:8000
+      MESSAGE_SERVICE_URL: http://message:3000
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET manquant}
+      CORS_ORIGIN: ${CORS_ORIGIN:?CORS_ORIGIN manquant}
+    networks:
+      - web
 
 volumes:
   db_data:

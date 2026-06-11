@@ -1,15 +1,26 @@
 const { Kafka, Partitioners } = require('kafkajs');
 
-const kafka = new Kafka({
+// PLAINTEXT par defaut ; SSL/SASL active uniquement si KAFKA_API_KEY est fourni.
+const brokers = (process.env.KAFKA_URL ?? 'kafka:9092')
+  .split(',')
+  .map((broker) => broker.trim())
+  .filter(Boolean);
+
+const kafkaConfig = {
   clientId: 'nodejs-service',
-  brokers: [process.env.KAFKA_URL],
-  ssl: true,
-  sasl: {
-    mechanism: "plain",
-    username: process.env.API_KEY,
-    password: process.env.API_SECRET
-  }
-});
+  brokers,
+};
+
+if (process.env.KAFKA_API_KEY) {
+  kafkaConfig.ssl = true;
+  kafkaConfig.sasl = {
+    mechanism: 'plain',
+    username: process.env.KAFKA_API_KEY,
+    password: process.env.KAFKA_API_SECRET,
+  };
+}
+
+const kafka = new Kafka(kafkaConfig);
 
 const producer = kafka.producer({
   createPartitioner: Partitioners.LegacyPartitioner, 
