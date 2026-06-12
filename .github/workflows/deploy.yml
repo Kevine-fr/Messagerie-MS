@@ -138,7 +138,7 @@ jobs:
 
           echo "Pull + demarrage des conteneurs..."
           docker compose -f docker-compose.prod.yml pull
-          docker compose -f docker-compose.prod.yml up -d --remove-orphans
+          docker compose -f docker-compose.prod.yml up -d --remove-orphans --force-recreate
 
           docker image prune -f
           docker exec nginx nginx -s reload || true
