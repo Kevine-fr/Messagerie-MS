@@ -109,7 +109,7 @@ jobs:
       - name: Copie du .env vers le VPS
         run: |
           ssh ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_HOST }} "mkdir -p ${{ secrets.PATH_DIR }}"
-          scp .env.deploy ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_HOST }}:${{ secrets.PATH_DIR }}/.env
+          cat .env.deploy | ssh ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_HOST }} "cat > ${{ secrets.PATH_DIR }}/.env"
 
       - name: Deploiement
         run: |
