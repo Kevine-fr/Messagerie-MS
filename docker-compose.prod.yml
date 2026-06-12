@@ -29,6 +29,12 @@ services:
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
+    healthcheck:
+      test: ["CMD-SHELL", "echo > /dev/tcp/localhost/2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
     networks:
       - web
 
@@ -37,7 +43,8 @@ services:
     container_name: messagerie-kafka
     restart: unless-stopped
     depends_on:
-      - zookeeper
+      zookeeper:
+        condition: service_healthy      
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
@@ -51,13 +58,13 @@ services:
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
     healthcheck:
       test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
-      interval: 10s
-      timeout: 10s
-      retries: 15
+      interval: 15s
+      timeout: 20s         
+      retries: 10
+      start_period: 45s     
     networks:
       - web
 
-  # Cree les topics au demarrage, puis s'arrete (les services attendent sa reussite).
   kafka-init:
     image: confluentinc/cp-kafka:7.6.1
     container_name: messagerie-kafka-init
