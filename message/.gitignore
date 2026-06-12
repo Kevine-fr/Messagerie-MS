@@ -1,2 +1,5 @@
 /node_modules
 .env
+# Service account Firebase (NE JAMAIS committer)
+firebase-service-account.json
+*-service-account.json

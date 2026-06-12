@@ -1,8 +1,28 @@
 const { Server } = require('socket.io');
+const User = require('../models/User');
+const pushSender = require('../services/pushSender');
 
 let ioInstance;
 // userId (Number) -> socketId
 const users = new Map();
+
+// Push "X est en train d'écrire…" quand le destinataire n'a aucun socket
+// (app fermée / arrière-plan sans connexion). Façon Snapchat.
+async function sendTypingPush(fromUserId, toUserId) {
+  try {
+    const sender = await User.findOne({ user_id: Number(fromUserId) });
+    const name = (sender && sender.name) || 'Quelqu’un';
+    await pushSender.sendToUser(toUserId, {
+      notification: { title: name, body: 'est en train d’écrire…' },
+      data: { type: 'typing', senderId: String(fromUserId), senderName: name },
+      collapseKey: `typing_${fromUserId}`,
+      ttl: 20000,
+      priority: 'high',
+    });
+  } catch (err) {
+    console.error('Push typing échoué :', err.message);
+  }
+}
 
 // Origines autorisees (separees par des virgules). La gateway reste la couche CORS
 // principale ; cette configuration est defensive pour les acces directs.
@@ -118,6 +138,9 @@ module.exports = {
         const targetSocketId = users.get(Number(otherUserId));
         if (targetSocketId) {
           ioInstance.to(targetSocketId).emit('peer_typing', { userId, otherUserId });
+        } else {
+          // Destinataire sans socket actif -> notification push.
+          sendTypingPush(userId, otherUserId);
         }
       });
 

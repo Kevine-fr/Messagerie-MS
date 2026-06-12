@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\MediaController;
 
 Route::get('/', function () {
     return "Service User is running... ✅";
@@ -27,4 +28,7 @@ Route::middleware('jwt.auth')->group(function () {
     Route::get('/me', [AuthController::class, 'Me']);
     Route::put('/user', [AuthController::class, 'Update']);
     Route::delete('/user', [AuthController::class, 'Delete']);
+
+    // Upload générique de pièces jointes (photos, vidéos, documents).
+    Route::post('/media', [MediaController::class, 'upload']);
 });

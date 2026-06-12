@@ -161,6 +161,14 @@ services:
       MONGO_URI: mongodb://mongodb:27017/messages_db
       KAFKA_URL: kafka:9092
       CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      # Notifications push (optionnel) : laisser vide pour désactiver.
+      # Option A : déposer message/firebase-service-account.json et définir
+      #   GOOGLE_APPLICATION_CREDENTIALS=/usr/src/app/firebase-service-account.json
+      # Option B : renseigner les 3 variables FIREBASE_* (clé sur une ligne, \n échappés).
+      GOOGLE_APPLICATION_CREDENTIALS: ${GOOGLE_APPLICATION_CREDENTIALS:-}
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:-}
+      FIREBASE_CLIENT_EMAIL: ${FIREBASE_CLIENT_EMAIL:-}
+      FIREBASE_PRIVATE_KEY: ${FIREBASE_PRIVATE_KEY:-}
     volumes:
       - ./message:/usr/src/app
       - /usr/src/app/node_modules

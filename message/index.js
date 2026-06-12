@@ -3,6 +3,10 @@ const http = require('http');
 require('dotenv').config();
 const { connectDB } = require('./config/db');
 const socket = require('./config/socket');
+const firebase = require('./config/firebase');
+
+// Initialise Firebase Admin (no-op si credentials absents).
+firebase.init();
 
 const app = express();
 const port = process.env.PORT ?? 3000;

@@ -10,6 +10,7 @@
         "cloudinary-labs/cloudinary-laravel": "^3.0",
         "jobcloud/php-kafka-lib": "^2.0",
         "laravel/framework": "^12.0",
+        "league/flysystem-aws-s3-v3": "^3.0",
         "laravel/tinker": "^2.10.1",
         "tymon/jwt-auth": "^2.2"
     },

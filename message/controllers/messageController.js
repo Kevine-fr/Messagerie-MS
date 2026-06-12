@@ -2,10 +2,35 @@ const User = require('../models/User');
 const socket = require('../config/socket');
 const Message = require('../models/Message');
 const { getIO, getUserSocketId, getRoomName } = require('../config/socket');
+const pushSender = require('../services/pushSender');
+
+// Libellé d'aperçu pour la notification push selon le type de message.
+function previewFor(type, content, fileName) {
+  if (content && content.trim()) return content;
+  if (type === 'image') return '📷 Photo';
+  if (type === 'video') return '🎥 Vidéo';
+  if (type === 'file') return `📎 ${fileName || 'Document'}`;
+  return 'Nouveau message';
+}
 
 exports.createMessage = async (req, res) => {
   try {
-    const { senderId, receiverId, content } = req.body;
+    const {
+      senderId,
+      receiverId,
+      content = '',
+      type = 'text',
+      mediaUrl,
+      fileName,
+      fileSize,
+      mimeType,
+      publicId,
+    } = req.body;
+
+    // Un message doit porter du texte OU un média.
+    if ((!content || !content.trim()) && !mediaUrl) {
+      return res.status(400).json({ error: "Message vide : texte ou média requis." });
+    }
 
     const sender = await User.findOne({ user_id: senderId });
     if (!sender) return res.status(404).json({ error: "Expéditeur introuvable." });
@@ -27,6 +52,12 @@ exports.createMessage = async (req, res) => {
       senderId,
       receiverId,
       content,
+      type,
+      mediaUrl,
+      fileName,
+      fileSize,
+      mimeType,
+      publicId,
       isRead,
     });
 
@@ -41,11 +72,34 @@ exports.createMessage = async (req, res) => {
           senderId,
           receiverId,
           content,
+          type: message.type,
+          mediaUrl: message.mediaUrl,
+          fileName: message.fileName,
+          fileSize: message.fileSize,
+          mimeType: message.mimeType,
           isRead: message.isRead,
           createdAt: message.createdAt,
           updatedAt: message.updatedAt
         },
       });
+    }
+
+    // Push si le destinataire n'est PAS dans la conversation (isRead=false) :
+    // hors ligne, ou en ligne mais sur un autre écran.
+    if (!isRead) {
+      pushSender.sendToUser(receiverId, {
+        notification: {
+          title: sender.name || 'Nouveau message',
+          body: previewFor(message.type, content, message.fileName),
+        },
+        data: {
+          type: 'message',
+          senderId: senderId,
+          senderName: sender.name || '',
+          senderPhoto: sender.photo || '',
+          messageId: message._id,
+        },
+      }).catch((err) => console.error('Push message échoué :', err.message));
     }
 
     res.status(201).json([message]);

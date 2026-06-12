@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const Message = require('../models/Message');
+const DeviceToken = require('../models/DeviceToken');
 
 // ➕ Créer un user
 exports.createUser = async (req, res) => {
@@ -31,6 +32,36 @@ exports.deleteAllUsers = async (req, res) => {
   } catch (err) {
     console.error('Erreur lors de la suppression des utilisateurs :', err);
     res.status(500).json({ error: 'Erreur serveur lors de la suppression des utilisateurs.' });
+  }
+};
+
+// ➕ Enregistre / met à jour un token FCM (upsert par token).
+exports.registerFcmToken = async (req, res) => {
+  try {
+    const { userId, token, platform } = req.body;
+    if (!userId || !token) {
+      return res.status(400).json({ error: 'userId et token requis.' });
+    }
+    await DeviceToken.findOneAndUpdate(
+      { token },
+      { userId: Number(userId), token, platform: platform || 'unknown' },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+    res.status(200).json({ message: 'Token enregistré.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// 🗑️ Supprime un token FCM (déconnexion).
+exports.removeFcmToken = async (req, res) => {
+  try {
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ error: 'token requis.' });
+    await DeviceToken.deleteOne({ token });
+    res.status(200).json({ message: 'Token supprimé.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };
 

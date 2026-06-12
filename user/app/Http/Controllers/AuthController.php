@@ -10,12 +10,12 @@ use Illuminate\Support\Facades\Hash;
 use App\Services\KafkaProducerService;
 use Illuminate\Support\Facades\Validator;
 use Tymon\JWTAuth\Exceptions\JWTException;
-use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary as CloudinaryFacade;
+use App\Contracts\MediaStorage;
 
 class AuthController extends Controller
 {
 
-    public function Register(Request $request , KafkaProducerService $kafka)
+    public function Register(Request $request , KafkaProducerService $kafka, MediaStorage $storage)
     {
         try {
             $validator = Validator::make($request->all(), [
@@ -24,30 +24,27 @@ class AuthController extends Controller
                 'password' => 'required|string|min:6',
                 'photo' => 'file|nullable|image|max:5120'
             ]);
-    
+
             if ($validator->fails()) {
                 return response()->json(['errors' => $validator->errors()], 422);
             }
 
             $url = null;
+            $publicId = null;
             $photo = $request->file('photo');
 
             if($photo != null){
-                $uploadResult = CloudinaryFacade::uploadApi()->upload(
-                $photo->getRealPath(),
-                    [
-                        'folder' => 'Messagerie-mS',
-                        'resource_type' => 'image',
-                    ]
-                );
-                $url = $uploadResult['secure_url'];
+                $stored = $storage->store($photo, config('media.folder', 'Messagerie-mS'));
+                $url = $stored['url'];
+                $publicId = $stored['public_id'];
             }
-            
+
             $user = User::create([
                 'name' => $request->name,
                 'email' => $request->email,
                 'password' => Hash::make($request->password),
-                'photo' => $url
+                'photo' => $url,
+                'photo_public_id' => $publicId,
             ]);
 
             try {
@@ -158,7 +155,7 @@ class AuthController extends Controller
         }
     }
 
-     public function Upload(Request $request)
+     public function Upload(Request $request, MediaStorage $storage)
     {
         try {
             $request->validate([
@@ -167,15 +164,8 @@ class AuthController extends Controller
 
             $file = $request->file('file');
 
-            $uploadResult = CloudinaryFacade::uploadApi()->upload(
-                $file->getRealPath(),
-                [
-                    'folder' => 'Messagerie-mS',
-                    'resource_type' => 'image',
-                ]
-            );
-
-            $url = $uploadResult['secure_url'];
+            $stored = $storage->store($file, config('media.folder', 'Messagerie-mS'));
+            $url = $stored['url'];
 
             return response()->json([
                 'data' => $url
@@ -194,7 +184,7 @@ class AuthController extends Controller
         }
     }
 
-    public function Update(Request $request , KafkaProducerService $kafka)
+    public function Update(Request $request , KafkaProducerService $kafka, MediaStorage $storage)
     {
         try {
             $user = JWTAuth::parseToken()->authenticate();
@@ -204,25 +194,29 @@ class AuthController extends Controller
                 'email' => 'string|email|unique:users,email,' . $user->id,
                 'password' => 'string|min:6|nullable',
                 'photo' => 'file|nullable|image|max:5120',
+                'remove_photo' => 'nullable|boolean',
             ]);
 
             if ($validator->fails()) {
                 return response()->json(['errors' => $validator->errors()], 422);
             }
 
-            if ($request->has('name')) $user->name = $request->name;
-            if ($request->has('email')) $user->email = $request->email;
-            if ($request->has('password')) $user->password = Hash::make($request->password);
+            if ($request->filled('name')) $user->name = $request->name;
+            if ($request->filled('email')) $user->email = $request->email;
+            if ($request->filled('password')) $user->password = Hash::make($request->password);
+
+            $removePhoto = filter_var($request->input('remove_photo', false), FILTER_VALIDATE_BOOLEAN);
 
             if ($request->hasFile('photo')) {
-                $uploadResult = CloudinaryFacade::uploadApi()->upload(
-                    $request->file('photo')->getRealPath(),
-                    [
-                        'folder' => 'Messagerie-mS',
-                        'resource_type' => 'image',
-                    ]
-                );
-                $user->photo = $uploadResult['secure_url'];
+                // Remplacement : on supprime d'abord l'ancienne photo du stockage.
+                $this->deleteStoredPhoto($storage, $user->photo_public_id);
+                $stored = $storage->store($request->file('photo'), config('media.folder', 'Messagerie-mS'));
+                $user->photo = $stored['url'];
+                $user->photo_public_id = $stored['public_id'];
+            } elseif ($removePhoto) {
+                $this->deleteStoredPhoto($storage, $user->photo_public_id);
+                $user->photo = null;
+                $user->photo_public_id = null;
             }
 
             $user->save();
@@ -279,5 +273,19 @@ class AuthController extends Controller
         }
     }
 
-
+    /**
+     * Supprime du stockage la photo référencée par son public_id, sans casser
+     * la requête si la suppression distante échoue (best effort).
+     */
+    private function deleteStoredPhoto(MediaStorage $storage, ?string $publicId): void
+    {
+        if (empty($publicId)) {
+            return;
+        }
+        try {
+            $storage->delete($publicId, 'image');
+        } catch (\Throwable $th) {
+            Log::warning("Suppression média ignorée ($publicId) : " . $th->getMessage());
+        }
+    }
 }
