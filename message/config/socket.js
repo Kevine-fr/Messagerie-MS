@@ -1,6 +1,7 @@
 const { Server } = require('socket.io');
 
 let ioInstance;
+// userId (Number) -> socketId
 const users = new Map();
 
 // Origines autorisees (separees par des virgules). La gateway reste la couche CORS
@@ -11,6 +12,32 @@ const allowedOrigins = (process.env.CORS_ORIGIN || '*')
   .filter(Boolean);
 const allowAllOrigins = allowedOrigins.includes('*');
 
+function getRoomName(userA, userB) {
+  const sorted = [Number(userA), Number(userB)].sort((a, b) => a - b);
+  return `conversation_${sorted[0]}_${sorted[1]}`;
+}
+
+function onlineUserIds() {
+  return Array.from(users.keys());
+}
+
+// Informe TOUS les clients de la liste a jour des utilisateurs en ligne.
+function broadcastOnlineUsers() {
+  if (ioInstance) ioInstance.emit('onlineUsers', onlineUserIds());
+}
+
+// Fait quitter une room et previent le pair restant que l'utilisateur est sorti.
+function leaveConversationRoom(socket, roomName) {
+  const pair = socket.conversations.get(roomName);
+  socket.leave(roomName);
+  socket.conversations.delete(roomName);
+  if (pair) {
+    // `socket.to` = tout le monde dans la room SAUF l'emetteur.
+    socket.to(roomName).emit('user_leave_conversation', pair);
+    socket.to(roomName).emit('peer_stop_typing', pair);
+  }
+}
+
 module.exports = {
   init: (server) => {
     ioInstance = new Server(server, {
@@ -19,15 +46,33 @@ module.exports = {
         methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
         credentials: !allowAllOrigins,
       },
+      // Detecte plus vite les coupures (tel eteint / reseau perdu / app tuee) :
+      // sans ping recu pendant pingTimeout apres un pingInterval, le serveur
+      // declenche `disconnect` -> on previent les pairs et on met a jour la presence.
+      pingInterval: 10000,
+      pingTimeout: 15000,
     });
 
     ioInstance.on('connection', (socket) => {
       console.log('🔌 Client connecté :', socket.id);
 
-      socket.on('register', (userId) => {
+      // Rooms de conversation rejointes par CE socket :
+      // roomName -> { userId, otherUserId } (utile pour notifier a la deconnexion).
+      socket.conversations = new Map();
+
+      socket.on('register', (rawUserId) => {
+        const userId = Number(rawUserId);
+        if (!userId) return;
+
+        // Si l'utilisateur avait deja un autre socket (reconnexion / multi-onglet),
+        // on remplace simplement par le plus recent.
         users.set(userId, socket.id);
         socket.userId = userId;
         console.log(`✅ Utilisateur ${userId} lié au socket ${socket.id}`);
+
+        // Liste complete pour le nouveau venu + diffusion a tout le monde.
+        socket.emit('onlineUsers', onlineUserIds());
+        broadcastOnlineUsers();
       });
 
       socket.on('user_in_conversation', ({ userId, otherUserId }) => {
@@ -35,11 +80,15 @@ module.exports = {
           console.warn('⚠️ Données incomplètes pour user_in_conversation');
           return;
         }
-      
+
         const roomName = getRoomName(userId, otherUserId);
         socket.join(roomName);
+        socket.conversations.set(roomName, {
+          userId: Number(userId),
+          otherUserId: Number(otherUserId),
+        });
         console.log(`🟢 ${userId} a rejoint la room ${roomName}`);
-      
+
         const room = ioInstance.sockets.adapter.rooms.get(roomName);
         if (room && room.size === 2) {
           ioInstance.to(roomName).emit('both_users_in_room', {
@@ -47,7 +96,7 @@ module.exports = {
             otherUserId,
             room: roomName,
           });
-          console.log(`✅ Les utilisateurs ${userId} & ${otherUserId} sont tous les 2 dans la ${roomName}`);
+          console.log(`✅ ${userId} & ${otherUserId} sont tous les 2 dans ${roomName}`);
         } else {
           console.log(`⏳ En attente de l'autre utilisateur pour la room ${roomName}`);
         }
@@ -55,28 +104,40 @@ module.exports = {
 
       socket.on('user_left_conversation', ({ userId, otherUserId }) => {
         if (!userId || !otherUserId) return;
-      
         const roomName = getRoomName(userId, otherUserId);
-        socket.leave(roomName);
+        leaveConversationRoom(socket, roomName);
         console.log(`🔴 ${userId} a quitté la room ${roomName}`);
-      
-        const room = ioInstance.sockets.adapter.rooms.get(roomName);
-      
-        if (room && room.size > 0) {
-          ioInstance.to(roomName).emit('user_leave_conversation', {
-            userId,
-            otherUserId,
-          });
-        }
       });
 
-      socket.on('disconnect', () => {
-        console.log('❌ Déconnexion :', socket.id);
+      // Indicateur « est en train d'ecrire » — relaye a l'autre membre de la room.
+      socket.on('typing', ({ userId, otherUserId }) => {
+        if (!userId || !otherUserId) return;
+        const roomName = getRoomName(userId, otherUserId);
+        socket.to(roomName).emit('peer_typing', { userId, otherUserId });
+      });
+
+      socket.on('stop_typing', ({ userId, otherUserId }) => {
+        if (!userId || !otherUserId) return;
+        const roomName = getRoomName(userId, otherUserId);
+        socket.to(roomName).emit('peer_stop_typing', { userId, otherUserId });
+      });
+
+      socket.on('disconnect', (reason) => {
+        console.log('❌ Déconnexion :', socket.id, `(${reason})`);
+
+        // Previent les pairs de CHAQUE conversation que l'utilisateur est sorti,
+        // meme en cas de coupure brutale (reseau / app tuee / tel eteint).
+        for (const roomName of Array.from(socket.conversations.keys())) {
+          leaveConversationRoom(socket, roomName);
+        }
 
         const userId = socket.userId;
-        if (userId) {
+        // Ne retire de la presence que si CE socket est bien le socket courant de
+        // l'utilisateur (evite de le marquer hors ligne apres une reconnexion).
+        if (userId && users.get(userId) === socket.id) {
           users.delete(userId);
-          console.log(`ℹ️ Utilisateur ${userId} supprimé des sockets`);
+          console.log(`ℹ️ Utilisateur ${userId} hors ligne`);
+          broadcastOnlineUsers();
         }
       });
     });
@@ -91,12 +152,7 @@ module.exports = {
     return ioInstance;
   },
 
-  getUserSocketId: (userId) => users.get(userId),
+  getUserSocketId: (userId) => users.get(Number(userId)),
 
   getRoomName,
 };
-
-function getRoomName(userA, userB) {
-  const sorted = [userA, userB].sort((a, b) => a - b);
-  return `conversation_${sorted[0]}_${sorted[1]}`;
-}
