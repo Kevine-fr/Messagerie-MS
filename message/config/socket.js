@@ -109,17 +109,24 @@ module.exports = {
         console.log(`🔴 ${userId} a quitté la room ${roomName}`);
       });
 
-      // Indicateur « est en train d'ecrire » — relaye a l'autre membre de la room.
+      // Indicateur « est en train d'ecrire » — envoye DIRECTEMENT au socket du
+      // destinataire (pas a la room) : ainsi il le recoit aussi bien dans la
+      // conversation que sur la liste des discussions (facon WhatsApp), meme
+      // s'il n'a pas (encore) rejoint la room.
       socket.on('typing', ({ userId, otherUserId }) => {
         if (!userId || !otherUserId) return;
-        const roomName = getRoomName(userId, otherUserId);
-        socket.to(roomName).emit('peer_typing', { userId, otherUserId });
+        const targetSocketId = users.get(Number(otherUserId));
+        if (targetSocketId) {
+          ioInstance.to(targetSocketId).emit('peer_typing', { userId, otherUserId });
+        }
       });
 
       socket.on('stop_typing', ({ userId, otherUserId }) => {
         if (!userId || !otherUserId) return;
-        const roomName = getRoomName(userId, otherUserId);
-        socket.to(roomName).emit('peer_stop_typing', { userId, otherUserId });
+        const targetSocketId = users.get(Number(otherUserId));
+        if (targetSocketId) {
+          ioInstance.to(targetSocketId).emit('peer_stop_typing', { userId, otherUserId });
+        }
       });
 
       socket.on('disconnect', (reason) => {
