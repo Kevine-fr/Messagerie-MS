@@ -149,6 +149,12 @@ services:
       MONGO_URI: mongodb://mongodb:27017/messages_db
       KAFKA_URL: kafka:9092
       CORS_ORIGIN: ${CORS_ORIGIN:?CORS_ORIGIN manquant}
+      # Notifications push (Firebase). Renseigner les 3 variables dans le .env
+      # du VPS (la clé privée sur une ligne, retours échappés en \n). Vide =>
+      # push désactivées (le service tourne quand même).
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:-}
+      FIREBASE_CLIENT_EMAIL: ${FIREBASE_CLIENT_EMAIL:-}
+      FIREBASE_PRIVATE_KEY: ${FIREBASE_PRIVATE_KEY:-}
     networks:
       - web
 
