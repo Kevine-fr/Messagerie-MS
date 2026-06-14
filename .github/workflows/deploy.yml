@@ -100,6 +100,11 @@ jobs:
           FIREBASE_PROJECT_ID=${{ secrets.FIREBASE_PROJECT_ID }}
           FIREBASE_CLIENT_EMAIL=${{ secrets.FIREBASE_CLIENT_EMAIL }}
           FIREBASE_PRIVATE_KEY=${{ secrets.FIREBASE_PRIVATE_KEY }}
+          MEDIA_DRIVER=${{ secrets.MEDIA_DRIVER }}
+          MINIO_ROOT_USER=${{ secrets.MINIO_ROOT_USER }}
+          MINIO_ROOT_PASSWORD=${{ secrets.MINIO_ROOT_PASSWORD }}
+          MINIO_BUCKET=${{ secrets.MINIO_BUCKET }}
+          MINIO_PUBLIC_URL=${{ secrets.MINIO_PUBLIC_URL }}
           MAIL_MAILER=${{ secrets.MAIL_MAILER }}
           MAIL_HOST=${{ secrets.MAIL_HOST }}
           MAIL_PORT=${{ secrets.MAIL_PORT }}

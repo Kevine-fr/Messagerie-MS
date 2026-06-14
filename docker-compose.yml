@@ -112,6 +112,44 @@ services:
     networks:
       - web
 
+  # Stockage objet S3-compatible pour les médias (photos, vidéos, documents).
+  minio:
+    image: minio/minio:latest
+    container_name: messagerie-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    ports:
+      - "9000:9000"   # API S3
+      - "9001:9001"   # Console web
+    volumes:
+      - minio_data:/data
+    networks:
+      - web
+
+  # Crée le bucket et le rend lisible publiquement (anonymous download), puis s'arrête.
+  minio-setup:
+    image: minio/mc:latest
+    container_name: messagerie-minio-setup
+    depends_on:
+      - minio
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_BUCKET: ${MINIO_BUCKET:-messagerie}
+    entrypoint: >
+      /bin/sh -c "
+      until mc alias set local http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD}; do echo 'attente MinIO...'; sleep 2; done;
+      mc mb --ignore-existing local/$${MINIO_BUCKET};
+      mc anonymous set download local/$${MINIO_BUCKET};
+      echo 'MinIO prêt (bucket public en lecture)';
+      "
+    restart: "no"
+    networks:
+      - web
+
   user:
     build:
       context: ./user
@@ -120,11 +158,6 @@ services:
     restart: unless-stopped
     ports:
       - "8000:8000"
-    depends_on:
-      db:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
     environment:
       APP_ENV: local
       APP_DEBUG: "true"
@@ -136,6 +169,24 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-password}
       KAFKA_BROKERS: kafka:9092
       KAFKA_GROUP_ID: user-service-group
+      # Stockage des médias via MinIO (compatible S3).
+      MEDIA_DRIVER: minio
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      AWS_DEFAULT_REGION: us-east-1
+      AWS_BUCKET: ${MINIO_BUCKET:-messagerie}
+      AWS_ENDPOINT: http://minio:9000
+      AWS_USE_PATH_STYLE_ENDPOINT: "true"
+      # URL publique des médias (accessible depuis l'app). Émulateur Android :
+      # http://10.0.2.2:9000/<bucket>. Appareil réel / web : http://<ip-host>:9000/<bucket>.
+      AWS_URL: ${MINIO_PUBLIC_URL:-http://localhost:9000/messagerie}
+    depends_on:
+      db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      minio:
+        condition: service_started
     volumes:
       - ./user:/var/www
     working_dir: /var/www
@@ -227,6 +278,7 @@ services:
 volumes:
   db_data:
   mongodb_data:
+  minio_data:
 
 networks:
   web:

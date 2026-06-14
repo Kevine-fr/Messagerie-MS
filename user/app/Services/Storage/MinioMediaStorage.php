@@ -27,7 +27,9 @@ class MinioMediaStorage implements MediaStorage
         $directory = trim($folder, '/');
         $path = "{$directory}/{$filename}";
 
-        $disk->putFileAs($directory, $file, $filename, 'public');
+        // La lecture publique est assurée par la policy du bucket (anonymous
+        // download), pas par un ACL par objet : plus robuste avec MinIO.
+        $disk->putFileAs($directory, $file, $filename);
 
         return [
             'url' => $disk->url($path),

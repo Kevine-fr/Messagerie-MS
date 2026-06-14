@@ -97,6 +97,41 @@ services:
     networks:
       - web
 
+  # Stockage objet S3-compatible pour les médias.
+  minio:
+    image: minio/minio:latest
+    container_name: messagerie-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?MINIO_ROOT_USER manquant}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD manquant}
+    volumes:
+      - minio_data:/data
+    networks:
+      - web
+
+  # Crée le bucket et le rend public en lecture, puis s'arrête.
+  minio-setup:
+    image: minio/mc:latest
+    container_name: messagerie-minio-setup
+    depends_on:
+      - minio
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_BUCKET: ${MINIO_BUCKET:-messagerie}
+    entrypoint: >
+      /bin/sh -c "
+      until mc alias set local http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD}; do echo 'attente MinIO...'; sleep 2; done;
+      mc mb --ignore-existing local/$${MINIO_BUCKET};
+      mc anonymous set download local/$${MINIO_BUCKET};
+      echo 'MinIO prêt';
+      "
+    restart: "no"
+    networks:
+      - web
+
   user:
     image: ${DOCKERHUB_USERNAME}/messagerie-user:${IMAGE_TAG:-latest}
     container_name: messagerie-service-user
@@ -108,6 +143,8 @@ services:
         condition: service_healthy
       kafka-init:
         condition: service_completed_successfully
+      minio:
+        condition: service_started
     environment:
       APP_ENV: production
       APP_DEBUG: "false"
@@ -122,7 +159,19 @@ services:
       KAFKA_BROKERS: kafka:9092
       KAFKA_GROUP_ID: user-service-group
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET manquant}
+      # Stockage des médias : MinIO (S3) par défaut. CLOUDINARY_URL reste lu si
+      # MEDIA_DRIVER=cloudinary.
+      MEDIA_DRIVER: ${MEDIA_DRIVER:-minio}
       CLOUDINARY_URL: ${CLOUDINARY_URL}
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+      AWS_DEFAULT_REGION: us-east-1
+      AWS_BUCKET: ${MINIO_BUCKET:-messagerie}
+      AWS_ENDPOINT: http://minio:9000
+      AWS_USE_PATH_STYLE_ENDPOINT: "true"
+      # URL publique des médias (sous-domaine nginx -> minio:9000). Ex :
+      # https://media.mondomaine.com/messagerie
+      AWS_URL: ${MINIO_PUBLIC_URL}
       MAIL_MAILER: ${MAIL_MAILER:-smtp}
       MAIL_HOST: ${MAIL_HOST}
       MAIL_PORT: ${MAIL_PORT}
@@ -203,6 +252,7 @@ services:
 volumes:
   db_data:
   mongodb_data:
+  minio_data:
 
 networks:
   web:
