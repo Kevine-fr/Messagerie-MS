@@ -100,7 +100,7 @@ services:
   # Stockage objet S3-compatible pour les médias.
   minio:
     image: minio/minio:latest
-    container_name: messagerie-minio
+    container_name: minio
     restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:
@@ -114,7 +114,7 @@ services:
   # Crée le bucket et le rend public en lecture, puis s'arrête.
   minio-setup:
     image: minio/mc:latest
-    container_name: messagerie-minio-setup
+    container_name: minio-setup
     depends_on:
       - minio
     environment:
