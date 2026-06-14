@@ -17,7 +17,10 @@ RUN apt-get update && apt-get install -y \
 
 RUN docker-php-ext-install pdo pdo_mysql mysqli
 
-RUN pecl install rdkafka \
+# channel-update : evite "does not have REST dependency information available".
+# Version epinglee pour des builds reproductibles.
+RUN pecl channel-update pecl.php.net \
+    && pecl install rdkafka-6.0.3 \
     && docker-php-ext-enable rdkafka
 
 COPY --from=composer:2.7 /usr/bin/composer /usr/bin/composer

@@ -17,7 +17,8 @@ RUN apt-get update && apt-get install -y \
 
 RUN docker-php-ext-install pdo pdo_pgsql pgsql
 
-RUN pecl install rdkafka \
+RUN pecl channel-update pecl.php.net \
+    && pecl install rdkafka-6.0.3 \
     && docker-php-ext-enable rdkafka
 
 WORKDIR /var/www

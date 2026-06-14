@@ -20,7 +20,9 @@ RUN apt-get update && apt-get install -y \
 RUN docker-php-ext-install pdo pdo_mysql mysqli
 
 # Installation de l'extension rdkafka via PECL
-RUN pecl install rdkafka \
+# channel-update : evite "does not have REST dependency information available".
+RUN pecl channel-update pecl.php.net \
+    && pecl install rdkafka-6.0.3 \
     && docker-php-ext-enable rdkafka
 
 # Installation de Composer (version epinglee)
