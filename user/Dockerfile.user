@@ -29,10 +29,10 @@ COPY --from=composer:2.7 /usr/bin/composer /usr/bin/composer
 
 # Limites d'upload (envoi de vidéos / documents via le service média).
 RUN { \
-      echo "upload_max_filesize=60M"; \
-      echo "post_max_size=65M"; \
+      echo "upload_max_filesize=110M"; \
+      echo "post_max_size=120M"; \
       echo "memory_limit=256M"; \
-      echo "max_execution_time=120"; \
+      echo "max_execution_time=300"; \
     } > /usr/local/etc/php/conf.d/uploads.ini
 
 WORKDIR /var/www

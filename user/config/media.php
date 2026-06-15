@@ -31,8 +31,8 @@ return [
     */
 
     'max_sizes' => [
-        'image' => (int) env('MEDIA_MAX_IMAGE_KB', 10240),     // 10 Mo
-        'video' => (int) env('MEDIA_MAX_VIDEO_KB', 51200),     // 50 Mo
-        'document' => (int) env('MEDIA_MAX_DOCUMENT_KB', 20480), // 20 Mo
+        'image' => (int) env('MEDIA_MAX_IMAGE_KB', 15360),      // 15 Mo
+        'video' => (int) env('MEDIA_MAX_VIDEO_KB', 102400),     // 100 Mo
+        'document' => (int) env('MEDIA_MAX_DOCUMENT_KB', 51200), // 50 Mo
     ],
 ];
