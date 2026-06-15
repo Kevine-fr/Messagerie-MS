@@ -132,35 +132,54 @@ exports.allConversation = async (req, res) => {
   try {
     const currentUserId = parseInt(req.params.user_id);
 
-    // 1. Récupérer tous les utilisateurs sauf l'utilisateur actuel
+    // 1. Agrégation : pour CHAQUE correspondant, le dernier message + le nombre
+    //    de non-lus — en une seule requête (au lieu de 2 par utilisateur).
+    const stats = await Message.aggregate([
+      { $match: { $or: [{ senderId: currentUserId }, { receiverId: currentUserId }] } },
+      {
+        $addFields: {
+          partnerId: {
+            $cond: [{ $eq: ['$senderId', currentUserId] }, '$receiverId', '$senderId'],
+          },
+        },
+      },
+      // Le plus récent en premier pour que $first = dernier message.
+      { $sort: { _id: -1 } },
+      {
+        $group: {
+          _id: '$partnerId',
+          lastMessage: { $first: '$$ROOT' },
+          unreadCount: {
+            $sum: {
+              $cond: [
+                { $and: [
+                  { $eq: ['$receiverId', currentUserId] },
+                  { $eq: ['$isRead', false] },
+                ] },
+                1,
+                0,
+              ],
+            },
+          },
+        },
+      },
+    ]);
+
+    const statsByPartner = new Map(stats.map((s) => [s._id, s]));
+
+    // 2. Tous les utilisateurs sauf l'utilisateur courant (une seule requête).
     const users = await User.find({ user_id: { $ne: currentUserId } });
 
-    const conversations = await Promise.all(users.map(async (user) => {
-      const otherUserId = user.user_id;
-
-      // 2. Dernier message échangé
-      const lastMessage = await Message.findOne({
-        $or: [
-          { senderId: currentUserId, receiverId: otherUserId },
-          { senderId: otherUserId, receiverId: currentUserId },
-        ]
-      }).sort({ createdAt: -1 });
-
-      // 3. Nombre de messages non lus venant de ce user vers l'utilisateur connecté
-      const unreadCount = await Message.countDocuments({
-        senderId: otherUserId,
-        receiverId: currentUserId,
-        isRead: false
-      });
-
+    const conversations = users.map((user) => {
+      const s = statsByPartner.get(user.user_id);
       return {
         user,
-        lastMessage,
-        unreadCount
+        lastMessage: s ? s.lastMessage : null,
+        unreadCount: s ? s.unreadCount : 0,
       };
-    }));
+    });
 
-    // 4. Trier les conversations par date de création du dernier message (createdAt), décroissante
+    // 3. Tri par date du dernier message (décroissante), sans message en dernier.
     conversations.sort((a, b) => {
       const dateA = a.lastMessage?.createdAt ? new Date(a.lastMessage.createdAt) : new Date(0);
       const dateB = b.lastMessage?.createdAt ? new Date(b.lastMessage.createdAt) : new Date(0);

@@ -19,4 +19,9 @@ const messageSchema = new mongoose.Schema({
   timestamps: true
 });
 
+// Index pour accélérer la pagination des conversations et l'agrégation de la
+// liste des discussions (filtres par expéditeur/destinataire + non-lus).
+messageSchema.index({ senderId: 1, receiverId: 1 });
+messageSchema.index({ receiverId: 1, isRead: 1 });
+
 module.exports = mongoose.model('Message', messageSchema);
