@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const User = require('../models/User');
 const socket = require('../config/socket');
 const Message = require('../models/Message');
@@ -271,12 +272,28 @@ exports.getAllMessagesBetweenUsers = async (req, res) => {
   try {
     const { senderId, receiverId } = req.params;
 
-    const messages = await Message.find({
+    // Pagination par curseur sur l'_id (monotone dans le temps) : on renvoie la
+    // page la PLUS RÉCENTE par défaut, puis les plus anciens via ?before=<id>.
+    const limit = Math.min(parseInt(req.query.limit, 10) || 30, 100);
+    const before = req.query.before;
+
+    const filter = {
       $or: [
         { senderId, receiverId },
         { senderId: receiverId, receiverId: senderId }
       ]
-    }).sort({ createdAt: 1 }); 
+    };
+    if (before && mongoose.Types.ObjectId.isValid(before)) {
+      filter._id = { $lt: new mongoose.Types.ObjectId(before) };
+    }
+
+    // Les plus récents d'abord (pour appliquer la limite), puis on remet en
+    // ordre chronologique croissant pour l'affichage.
+    const messages = await Message.find(filter)
+      .sort({ _id: -1 })
+      .limit(limit);
+
+    messages.reverse();
 
     res.status(200).json(messages);
   } catch (err) {
