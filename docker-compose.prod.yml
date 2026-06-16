@@ -22,49 +22,6 @@ services:
     networks:
       - web
 
-  zookeeper:
-    image: confluentinc/cp-zookeeper:7.6.1
-    container_name: messagerie-zookeeper
-    restart: unless-stopped
-    environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_TICK_TIME: 2000
-    healthcheck:
-      test: ["CMD-SHELL", "echo > /dev/tcp/localhost/2181"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 20s
-    networks:
-      - web
-
-  kafka:
-    image: confluentinc/cp-kafka:7.6.1
-    container_name: messagerie-kafka
-    restart: unless-stopped
-    depends_on:
-      zookeeper:
-        condition: service_healthy      
-    environment:
-      KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
-    healthcheck:
-      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
-      interval: 15s
-      timeout: 20s         
-      retries: 10
-      start_period: 45s     
-    networks:
-      - web
-
   kafka-init:
     image: confluentinc/cp-kafka:7.6.1
     container_name: messagerie-kafka-init
@@ -94,20 +51,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    networks:
-      - web
-
-  # Stockage objet S3-compatible pour les médias.
-  minio:
-    image: minio/minio:latest
-    container_name: minio
-    restart: unless-stopped
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?MINIO_ROOT_USER manquant}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD manquant}
-    volumes:
-      - minio_data:/data
     networks:
       - web
 
@@ -252,7 +195,6 @@ services:
 volumes:
   db_data:
   mongodb_data:
-  minio_data:
 
 networks:
   web:
