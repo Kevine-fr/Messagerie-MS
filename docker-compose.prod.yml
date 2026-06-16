@@ -58,8 +58,6 @@ services:
   minio-setup:
     image: minio/mc:latest
     container_name: minio-setup
-    depends_on:
-      - minio
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
