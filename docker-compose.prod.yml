@@ -25,10 +25,10 @@ services:
   kafka-init:
     image: confluentinc/cp-kafka:7.6.1
     container_name: messagerie-kafka-init
-    depends_on:
-      kafka:
-        condition: service_healthy
-    entrypoint: ["/bin/bash", "-c"]
+    # depends_on:
+    #   kafka:
+    #     condition: service_healthy
+    # entrypoint: ["/bin/bash", "-c"]
     command: |
       "
       kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic user.created --partitions 1 --replication-factor 1
