@@ -37,6 +37,14 @@ const corsOptions = {
 // Le middleware cors() gere aussi automatiquement le preflight OPTIONS.
 app.use(cors(corsOptions));
 
+// Metriques Prometheus. Montees avant les proxys pour mesurer tout le trafic
+// qui traverse la passerelle (y compris les 401/403 d'authentification).
+// L'endpoint /metrics est bloque publiquement par nginx : seul Prometheus le
+// lit, depuis le reseau Docker interne.
+const { metricsMiddleware, metricsHandler } = require('./metrics');
+app.use(metricsMiddleware);
+app.get('/metrics', metricsHandler);
+
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
   // Token via header Authorization OU query ?token= (handshake WebSocket cote navigateur).

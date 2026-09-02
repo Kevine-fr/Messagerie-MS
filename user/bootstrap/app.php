@@ -13,6 +13,13 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
     $middleware->remove(\Illuminate\Http\Middleware\HandleCors::class);
+
+    // Metriques Prometheus : compte et chronometre les requetes de l'API pour
+    // Grafana. En "append", le middleware mesure la reponse reellement
+    // renvoyee (y compris 401/422/500).
+    $middleware->api(append: [
+        \App\Http\Middleware\CollectMetrics::class,
+    ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

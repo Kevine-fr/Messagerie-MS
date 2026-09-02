@@ -1,6 +1,16 @@
 # Environnement de PRODUCTION (images pre-construites tirees de DockerHub).
 # Les variables proviennent du fichier .env genere par la CI/CD sur le VPS.
 # Reseau "web" externe : partage avec le reverse proxy nginx (termine le TLS).
+#
+# Plafonds de ressources (VPS mutualise 8 vCPU / 24 Go) : voir CAPACITY.md dans
+# le depot Infrastructure. mem_limit est un garde-fou, pas une reservation ;
+# cpu_shares ne joue qu'en cas de contention (1024 = prod, 256 = tache de fond).
+
+x-logging: &logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
 
 services:
   db:
@@ -19,6 +29,31 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    mem_limit: 768m
+    cpus: 1
+    cpu_shares: 1024
+    logging: *logging
+    networks:
+      - web
+
+  # Exporter Prometheus de MySQL (job "mysql" cote Prometheus).
+  # v0.14.0 volontairement : c'est la derniere version qui accepte un DSN via
+  # DATA_SOURCE_NAME. Les versions >= 0.15 exigent un fichier .my.cnf monte.
+  mysqld-exporter:
+    image: prom/mysqld-exporter:v0.14.0
+    container_name: mysqld-exporter-messagerie
+    restart: unless-stopped
+    environment:
+      DATA_SOURCE_NAME: "root:${DB_ROOT_PASSWORD}@(db:3306)/"
+    expose:
+      - "9104"
+    depends_on:
+      db:
+        condition: service_healthy
+    mem_limit: 96m
+    cpus: 0.2
+    cpu_shares: 256
+    logging: *logging
     networks:
       - web
 
@@ -37,6 +72,14 @@ services:
       kafka-topics --bootstrap-server kafka:9092 --list
       "
     restart: "no"
+    # Conteneur ephemere, mais il lance une JVM : sans borne elle vise un tas
+    # dimensionne sur les 24 Go de l'hote, le temps de creer trois topics.
+    environment:
+      KAFKA_HEAP_OPTS: "-Xmx256m -Xms128m"
+    mem_limit: 512m
+    cpus: 0.5
+    cpu_shares: 256
+    logging: *logging
     networks:
       - web
 
@@ -51,6 +94,33 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    # WiredTiger dimensionne son cache sur la limite du cgroup : sans plafond,
+    # il reserverait la moitie de la RAM de l'hote pour lui seul.
+    mem_limit: 768m
+    cpus: 1
+    cpu_shares: 1024
+    logging: *logging
+    networks:
+      - web
+
+  # Exporter Prometheus de MongoDB (job "mongodb", label server=messagerie).
+  mongodb-exporter:
+    image: percona/mongodb_exporter:0.40
+    container_name: mongodb-exporter-messagerie
+    restart: unless-stopped
+    command:
+      - '--mongodb.uri=mongodb://mongodb:27017'
+      - '--collect-all'
+      - '--compatible-mode'
+    expose:
+      - "9216"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    mem_limit: 128m
+    cpus: 0.2
+    cpu_shares: 256
+    logging: *logging
     networks:
       - web
 
@@ -70,6 +140,10 @@ services:
       echo 'MinIO prêt';
       "
     restart: "no"
+    mem_limit: 128m
+    cpus: 0.3
+    cpu_shares: 256
+    logging: *logging
     networks:
       - web
 
@@ -116,6 +190,10 @@ services:
       MAIL_PASSWORD: ${MAIL_PASSWORD}
       MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS}
       MAIL_FROM_NAME: ${MAIL_FROM_NAME:-Messagerie}
+    mem_limit: 512m
+    cpus: 1
+    cpu_shares: 1024
+    logging: *logging
     networks:
       - web
 
@@ -139,6 +217,10 @@ services:
       FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:-}
       FIREBASE_CLIENT_EMAIL: ${FIREBASE_CLIENT_EMAIL:-}
       FIREBASE_PRIVATE_KEY: ${FIREBASE_PRIVATE_KEY:-}
+    mem_limit: 512m
+    cpus: 1
+    cpu_shares: 1024
+    logging: *logging
     networks:
       - web
 
@@ -159,6 +241,11 @@ services:
       # la collection User (events user.created/updated/deleted).
       MESSAGE_SERVICE_URL: http://message:3000
     command: node services/kafkaConsumer.js
+    # Tache de fond : elle cede le CPU au trafic web en cas de contention.
+    mem_limit: 384m
+    cpus: 0.5
+    cpu_shares: 256
+    logging: *logging
     networks:
       - web
 
@@ -179,6 +266,10 @@ services:
       MESSAGE_SERVICE_URL: http://message:3000
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET manquant}
       CORS_ORIGIN: ${CORS_ORIGIN:?CORS_ORIGIN manquant}
+    mem_limit: 384m
+    cpus: 1
+    cpu_shares: 1024
+    logging: *logging
     networks:
       - web
 

@@ -13,6 +13,13 @@ const port = process.env.PORT ?? 3000;
 
 app.use(express.json());
 
+// Métriques Prometheus. Monté avant les routes pour couvrir aussi les 404.
+// L'endpoint est interne (bloqué publiquement par nginx) : c'est Prometheus
+// qui vient le lire depuis le réseau Docker.
+const { metricsMiddleware, metricsHandler } = require('./metrics');
+app.use(metricsMiddleware);
+app.get('/metrics', metricsHandler);
+
 // Routes
 const messageRoutes = require('./routes/messageRoutes');
 const userRoutes = require('./routes/userRoutes');
