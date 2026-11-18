@@ -18,7 +18,10 @@ Route::prefix('user')->group(function () {
     Route::post('/login', [AuthController::class, 'Login']);
     Route::post('/logout', [AuthController::class, 'Logout']);
     Route::post('/register', [AuthController::class, 'Register']);
-    Route::delete('/{id}', [UserController::class, 'Destroy']);
+    // Sans authentification jusqu'au 18/11 : n'importe qui, sans jeton, pouvait
+    // supprimer n'importe quel compte (DELETE /service/user/public/api/user/5).
+    // Désormais : connecté, et seulement son propre compte (UserController).
+    Route::middleware('jwt.auth')->delete('/{id}', [UserController::class, 'Destroy']);
     Route::middleware('jwt.auth')->get('/', [UserController::class, 'GetAllUsers']);            
     Route::middleware('jwt.auth')->get('/latest', [UserController::class, 'GetLastUsers']);     
     Route::middleware('jwt.auth')->get('/{id}', [UserController::class, 'GetUser']);             

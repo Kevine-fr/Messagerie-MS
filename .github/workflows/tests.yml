@@ -1,0 +1,60 @@
+name: Tests
+
+# Les épreuves des trois services sur chaque PR et chaque push sur dev : une
+# PR ne s'annonce prête qu'avec cette coche verte (CLAUDE.md).
+on:
+  pull_request:
+  push:
+    branches: [dev]
+  workflow_dispatch:
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  node:
+    name: ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [apigateway, message]
+    defaults:
+      run:
+        working-directory: ${{ matrix.service }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: ${{ matrix.service }}/package-lock.json
+      - run: npm ci
+      - run: npm test
+
+  user:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: user
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: pdo_sqlite, mbstring
+          tools: composer
+      # rdkafka n'est pas nécessaire aux épreuves : le producteur est simulé.
+      - run: composer install --no-interaction --no-progress --prefer-dist --ignore-platform-req=ext-rdkafka
+      - run: cp .env.example .env && php artisan key:generate
+      - run: vendor/bin/phpunit
+
+  sauvegarde:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash tests/sauvegarde.test.sh
