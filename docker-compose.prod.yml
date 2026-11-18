@@ -128,9 +128,15 @@ services:
       - messagerie_interne
 
   # Crée le bucket et le rend public en lecture, puis s'arrête.
+  # Hors du démarrage normal (profil) : l'image minio/mc a disparu de Docker
+  # Hub et son pull, refusé, faisait échouer tout le déploiement le 18/11. Le
+  # bucket existe depuis juin ; pour un VPS neuf :
+  #   docker compose -f docker-compose.prod.yml --profile init-minio up minio-setup
+  # (avec une image mc disponible, MC_IMAGE=…).
   minio-setup:
-    image: minio/mc:latest
+    image: ${MC_IMAGE:-minio/mc:latest}
     container_name: minio-setup
+    profiles: ["init-minio"]
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
