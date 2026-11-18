@@ -16,3 +16,6 @@ npm-debug.log*
 Thumbs.db
 .idea/
 *.swp
+
+# Sauvegardes locales (scripts/backup.sh)
+backups/

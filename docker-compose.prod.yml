@@ -1,6 +1,7 @@
 # Environnement de PRODUCTION (images pre-construites tirees de DockerHub).
 # Les variables proviennent du fichier .env genere par la CI/CD sur le VPS.
 # Reseau "web" externe : partage avec le reverse proxy nginx (termine le TLS).
+# Les bases (MySQL, MongoDB) sont sur le reseau prive messagerie_interne.
 #
 # Plafonds de ressources (VPS mutualise 8 vCPU / 24 Go) : voir CAPACITY.md dans
 # le depot Infrastructure. mem_limit est un garde-fou, pas une reservation ;
@@ -34,7 +35,7 @@ services:
     cpu_shares: 1024
     logging: *logging
     networks:
-      - web
+      - messagerie_interne
 
   # Exporter Prometheus de MySQL (job "mysql" cote Prometheus).
   # v0.14.0 volontairement : c'est la derniere version qui accepte un DSN via
@@ -44,7 +45,7 @@ services:
     container_name: mysqld-exporter-messagerie
     restart: unless-stopped
     environment:
-      DATA_SOURCE_NAME: "root:${DB_ROOT_PASSWORD}@(db:3306)/"
+      DATA_SOURCE_NAME: "root:${DB_ROOT_PASSWORD}@(messagerie-mysql:3306)/"
     expose:
       - "9104"
     depends_on:
@@ -56,6 +57,7 @@ services:
     logging: *logging
     networks:
       - web
+      - messagerie_interne
 
   kafka-init:
     image: confluentinc/cp-kafka:7.6.1
@@ -101,7 +103,7 @@ services:
     cpu_shares: 1024
     logging: *logging
     networks:
-      - web
+      - messagerie_interne
 
   # Exporter Prometheus de MongoDB (job "mongodb", label server=messagerie).
   mongodb-exporter:
@@ -109,7 +111,7 @@ services:
     container_name: mongodb-exporter-messagerie
     restart: unless-stopped
     command:
-      - '--mongodb.uri=mongodb://mongodb:27017'
+      - '--mongodb.uri=mongodb://messagerie-mongodb:27017'
       - '--collect-all'
       - '--compatible-mode'
     expose:
@@ -123,6 +125,7 @@ services:
     logging: *logging
     networks:
       - web
+      - messagerie_interne
 
   # Crée le bucket et le rend public en lecture, puis s'arrête.
   minio-setup:
@@ -162,7 +165,7 @@ services:
       APP_KEY: ${APP_KEY}
       APP_URL: https://${APP_DOMAIN}
       DB_CONNECTION: mysql
-      DB_HOST: db
+      DB_HOST: messagerie-mysql
       DB_PORT: 3306
       DB_DATABASE: ${DB_DATABASE}
       DB_USERNAME: ${DB_USER}
@@ -196,6 +199,7 @@ services:
     logging: *logging
     networks:
       - web
+      - messagerie_interne
 
   message:
     image: ${DOCKERHUB_USERNAME}/messagerie-message:${IMAGE_TAG:-latest}
@@ -208,7 +212,7 @@ services:
         condition: service_completed_successfully
     environment:
       PORT: 3000
-      MONGO_URI: mongodb://mongodb:27017/messages_db
+      MONGO_URI: mongodb://messagerie-mongodb:27017/messages_db
       KAFKA_URL: kafka:9092
       CORS_ORIGIN: ${CORS_ORIGIN:?CORS_ORIGIN manquant}
       # Notifications push (Firebase). Renseigner les 3 variables dans le .env
@@ -223,6 +227,7 @@ services:
     logging: *logging
     networks:
       - web
+      - messagerie_interne
 
   # Meme image que "message", mais lance le consommateur Kafka.
   worker:
@@ -235,7 +240,7 @@ services:
       kafka-init:
         condition: service_completed_successfully
     environment:
-      MONGO_URI: mongodb://mongodb:27017/messages_db
+      MONGO_URI: mongodb://messagerie-mongodb:27017/messages_db
       KAFKA_URL: kafka:9092
       # Le consumer appelle le service message en HTTP pour synchroniser
       # la collection User (events user.created/updated/deleted).
@@ -248,6 +253,7 @@ services:
     logging: *logging
     networks:
       - web
+      - messagerie_interne
 
   apigateway:
     image: ${DOCKERHUB_USERNAME}/messagerie-apigateway:${IMAGE_TAG:-latest}
@@ -280,3 +286,8 @@ volumes:
 networks:
   web:
     external: true
+  # Les bases ne sont plus sur le réseau partagé « web » : Tea y a aussi un
+  # service nommé « db » (Postgres), et Docker résolvait « db » vers l'un ou
+  # l'autre au hasard. Les services les joignent par leur nom de conteneur,
+  # unique sur la machine, sur ce réseau privé.
+  messagerie_interne:

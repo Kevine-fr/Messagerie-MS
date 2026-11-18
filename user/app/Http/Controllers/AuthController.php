@@ -95,9 +95,11 @@ class AuthController extends Controller
                 ]
             ]);
         } catch (\Throwable $th) {
+            // Le message brut (SQL, hôte de la base…) n'est rendu qu'en debug.
+            Log::error("Login error: " . $th->getMessage());
             return response()->json([
                 "message" => "Erreur lors de la connexion !",
-                "errors" => $th->getMessage()
+                "errors" => config('app.debug') ? $th->getMessage() : null,
             ], 500);
         }
     }

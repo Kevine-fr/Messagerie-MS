@@ -33,15 +33,16 @@ exports.createMessage = async (req, res) => {
       return res.status(400).json({ error: "Message vide : texte ou média requis." });
     }
 
+    // Vérifié avant la base : deux lectures de moins pour une requête refusée.
+    if (senderId === receiverId) {
+      return res.status(409).json({ error: "Vous ne pouvez pas vous envoyer un message à vous-même." });
+    }
+
     const sender = await User.findOne({ user_id: senderId });
     if (!sender) return res.status(404).json({ error: "Expéditeur introuvable." });
 
     const receiver = await User.findOne({ user_id: receiverId });
     if (!receiver) return res.status(404).json({ error: "Destinataire introuvable." });
-
-    if (senderId === receiverId) {
-      return res.status(409).json({ error: "Vous ne pouvez pas vous envoyer un message à vous-même." });
-    }
 
     const io = getIO();
     const roomName = getRoomName(senderId, receiverId);
@@ -339,3 +340,6 @@ exports.markMessagesAsRead = async (req, res) => {
 
 
 
+
+// Exporté pour les tests.
+exports.previewFor = previewFor;

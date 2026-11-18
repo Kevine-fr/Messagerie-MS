@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use Illuminate\Http\Request;
+use Tymon\JWTAuth\Facades\JWTAuth;
 use Illuminate\Support\Facades\Log;
 use App\Services\KafkaProducerService;
 use App\Mail\ClientMail;
@@ -77,6 +78,11 @@ class UserController extends Controller
 
     public function Destroy($id, KafkaProducerService $kafka)
     {
+        $connecte = JWTAuth::parseToken()->authenticate();
+        if (!$connecte || (string) $connecte->id !== (string) $id) {
+            return response()->json(['message' => 'Vous ne pouvez supprimer que votre propre compte.'], 403);
+        }
+
         Log::info("Suppression utilisateur $id");
 
         $user = User::findOrFail($id);
