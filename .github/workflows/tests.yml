@@ -58,3 +58,5 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: bash tests/sauvegarde.test.sh
+      - name: Images lancées par le compose de production
+        run: bash tests/compose.test.sh
