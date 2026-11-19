@@ -1,0 +1,19 @@
+# Fiche lue par le portfolio (Portfolio-Server, synchronisation GitHub).
+# Elle prime sur le README : titre, résumé et technologies affichés.
+title: Messagerie
+subtitle: Messagerie temps réel en microservices
+description: 'Messagerie instantanée découpée en microservices : passerelle Express qui vérifie le JWT,
+  service utilisateurs Laravel sur MySQL, service messages Node et Socket.IO sur MongoDB, synchronisés
+  par Kafka, médias sur MinIO.'
+techStack:
+- Node.js
+- Express
+- Socket.IO
+- Laravel
+- MySQL
+- MongoDB
+- Kafka
+- MinIO
+- Docker
+status: published
+year: 2025
