@@ -1,4 +1,9 @@
-FROM php:8.2-fpm
+# Version figée, jamais « 8.2-fpm » : une étiquette flottante ne dit pas
+# quelle version tourne, et une image bâtie avant le 19/11/2026 garde les
+# failles corrigées par PHP 8.2.36 (injection d'objets par la session
+# CVE-2026-115560, use-after-free du fuseau horaire CVE-2026-129496…).
+# tests/Unit/ImageDockerTest.php refuse une version antérieure.
+FROM php:8.2.36-fpm
 
 RUN apt-get update && apt-get install -y \
     libpng-dev \
